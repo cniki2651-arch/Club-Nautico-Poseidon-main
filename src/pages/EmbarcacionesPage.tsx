@@ -1,0 +1,476 @@
+import { useState, useEffect } from "react";
+import { Ship, Anchor, Plus, CheckCircle2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import FormularioTripulante from "@/components/FormularioTripulante";
+
+// ---------------------------------------------------------------------------
+// Tipos
+// ---------------------------------------------------------------------------
+interface EmbarcacionAPI {
+  id_embarcacion:   number;
+  id_socio:         number;
+  nombres?:         string;
+  apellidos?:       string;
+  matricula:        string;
+  nombre_nave:      string;
+  tipo:             string;
+  eslora:           number | string;
+  estado_capitania: string;
+}
+
+interface SocioSimple {
+  id_socio: number;
+  nombres:  string;
+  apellidos: string;
+}
+
+interface RadaAPI {
+  id: number;
+  codigo: string;
+  estado: string; // "Disponible", "Ocupado", "Mantenimiento"
+  embarcacion: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers visuales
+// ---------------------------------------------------------------------------
+function CapitaniaBadge({ estado }: { estado: string }) {
+  return estado === "Validado" ? (
+    <Badge className="bg-green-100 text-green-800 border-green-200">Validado</Badge>
+  ) : (
+    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendiente</Badge>
+  );
+}
+
+function radaClasses(estado: string) {
+  switch (estado) {
+    case "Ocupado":       return "bg-blue-900 border-blue-700 text-white cursor-pointer hover:bg-blue-800 transition-colors";
+    case "Disponible":    return "bg-teal-50 border-teal-300 text-teal-800 cursor-pointer hover:bg-teal-100 transition-colors";
+    case "Mantenimiento": return "bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-60";
+    default:              return "bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-60";
+  }
+}
+
+const formVacio = {
+  id_socio:    "",
+  matricula:   "",
+  nombre_nave: "",
+  tipo:        "",
+  eslora:      "",
+};
+
+// ---------------------------------------------------------------------------
+// Componente principal
+// ---------------------------------------------------------------------------
+export default function EmbarcacionesPage() {
+  const { toast } = useToast();
+
+  // ── Estados ───────────────────────────────────────────────────────────────
+  const [embarcaciones, setEmbarcaciones]     = useState<EmbarcacionAPI[]>([]);
+  const [radas, setRadas]                     = useState<RadaAPI[]>([]);
+  const [socios, setSocios]                   = useState<SocioSimple[]>([]);
+  
+  const [cargandoFlota, setCargandoFlota]     = useState(true);
+  const [errorFlota, setErrorFlota]           = useState<string | null>(null);
+  
+  const [openNew, setOpenNew]                 = useState(false);
+  const [form, setForm]                       = useState(formVacio);
+  const [enviando, setEnviando]               = useState(false);
+  const [errorForm, setErrorForm]             = useState<string | null>(null);
+
+  // Modal de Radas
+  const [radaDialog, setRadaDialog]           = useState<{ radaId: number; modo: "asignar" | "liberar" } | null>(null);
+  const [embSeleccionada, setEmbSeleccionada] = useState("");
+
+  // Embarcaciones disponibles para asignar (Validadas y que NO estén ya en una rada)
+  const embSinRada = embarcaciones.filter((e) => {
+    const estaValidada = e.estado_capitania === "Validado";
+    const yaEstaEstacionada = radas.some((r) => r.embarcacion === e.nombre_nave);
+    return estaValidada && !yaEstaEstacionada;
+  });
+
+  // ── Fetching de Datos ─────────────────────────────────────────────────────
+  const fetchEmbarcaciones = async () => {
+    setCargandoFlota(true);
+    setErrorFlota(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("https://api-poseidon.onrender.com/api/embarcaciones", {
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar la flota.`);
+      const data = await res.json();
+      setEmbarcaciones(data);
+    } catch (err) {
+      setErrorFlota(err instanceof Error ? err.message : "Error inesperado.");
+    } finally {
+      setCargandoFlota(false);
+    }
+  };
+
+  const fetchRadas = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("https://api-poseidon.onrender.com/api/radas", {
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setRadas(data);
+    } catch { /* silencioso */ }
+  };
+
+  const fetchSocios = async () => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("https://api-poseidon.onrender.com/api/socios", {
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSocios(data);
+    } catch { /* silencioso */ }
+  };
+
+  useEffect(() => {
+    fetchEmbarcaciones();
+    fetchRadas();
+    fetchSocios();
+  }, []);
+
+  // ── CRUD Flota ────────────────────────────────────────────────────────────
+  const handleRegistrar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.id_socio) { setErrorForm("Selecciona un socio propietario."); return; }
+    setEnviando(true);
+    setErrorForm(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("https://api-poseidon.onrender.com/api/embarcaciones/crear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          id_socio:    Number(form.id_socio),
+          matricula:   form.matricula,
+          nombre_nave: form.nombre_nave,
+          tipo:        form.tipo,
+          eslora:      parseFloat(form.eslora) || form.eslora,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok || res.status === 201) {
+        toast({ title: "Embarcación registrada", description: `${form.nombre_nave} agregada con validación pendiente.` });
+        setForm(formVacio);
+        setOpenNew(false);
+        await fetchEmbarcaciones();
+      } else {
+        setErrorForm(data.mensaje ?? `Error al registrar.`);
+      }
+    } catch {
+      setErrorForm("Error de red. Verifica tu conexión.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const handleValidar = async (id: number, nombre: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`https://api-poseidon.onrender.com/api/embarcaciones/${id}/validar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (res.ok || res.status === 200) {
+        setEmbarcaciones((prev) => prev.map((e) => e.id_embarcacion === id ? { ...e, estado_capitania: "Validado" } : e));
+        toast({ title: "Capitanía validada", description: `${nombre} ha sido validada y ya puede usar una rada.` });
+      } else {
+        toast({ title: "Error", description: "No se pudo validar.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error de red", description: "Sin conexión.", variant: "destructive" });
+    }
+  };
+
+  // ── Lógica de Radas Reales ────────────────────────────────────────────────
+  function handleRadaClick(radaId: number, estado: string) {
+    if (estado === "Mantenimiento") return;
+    setEmbSeleccionada("");
+    setRadaDialog({ radaId, modo: estado === "Disponible" ? "asignar" : "liberar" });
+  }
+
+  const handleAsignar = async () => {
+    if (!embSeleccionada || !radaDialog) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`https://api-poseidon.onrender.com/api/radas/${radaDialog.radaId}/asignar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ id_embarcacion: Number(embSeleccionada) }),
+      });
+      if (res.ok) {
+        toast({ title: "Rada asignada", description: "La embarcación ha sido estacionada correctamente." });
+        setRadaDialog(null);
+        await fetchRadas(); // Refrescar el mapa
+      } else {
+        toast({ title: "Error", description: "No se pudo asignar la rada.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Error de conexión.", variant: "destructive" });
+    }
+  };
+
+  const handleLiberar = async () => {
+    if (!radaDialog) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`https://api-poseidon.onrender.com/api/radas/${radaDialog.radaId}/liberar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (res.ok) {
+        toast({ title: "Rada liberada", description: "El espacio de amarre vuelve a estar disponible." });
+        setRadaDialog(null);
+        await fetchRadas(); // Refrescar el mapa
+      } else {
+        toast({ title: "Error", description: "No se pudo liberar la rada.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Error de conexión.", variant: "destructive" });
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Embarcaciones y Radas</h1>
+        <p className="text-muted-foreground text-sm">Control de naves, espacios de amarre y tripulación</p>
+      </div>
+
+      <Tabs defaultValue="embarcaciones" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="embarcaciones" className="gap-2">
+            <Ship className="h-4 w-4" /> Flota
+          </TabsTrigger>
+          <TabsTrigger value="radas" className="gap-2">
+            <Anchor className="h-4 w-4" /> Radas
+          </TabsTrigger>
+          <TabsTrigger value="tripulantes" className="gap-2">
+            Tripulantes
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ── TAB: FLOTA ─────────────────────────────────────────────────── */}
+        <TabsContent value="embarcaciones">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-base">Gestión de Flota</CardTitle>
+              <Dialog open={openNew} onOpenChange={(v) => { setOpenNew(v); if (!v) { setForm(formVacio); setErrorForm(null); } }}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2 bg-blue-900 text-white">
+                    <Plus className="h-4 w-4" /> Nueva Embarcación
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Registrar Embarcación</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleRegistrar} className="space-y-4 pt-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="emb-nombre">Nombre de la nave</Label>
+                      <Input id="emb-nombre" placeholder="Ej: Neptuno II" value={form.nombre_nave} onChange={(e) => setForm({ ...form, nombre_nave: e.target.value })} required />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="emb-matricula">Matrícula</Label>
+                      <Input id="emb-matricula" placeholder="Ej: CO-59834-RE" value={form.matricula} onChange={(e) => setForm({ ...form, matricula: e.target.value.toUpperCase() })} required />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="emb-tipo">Tipo</Label>
+                        <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                          <SelectTrigger id="emb-tipo"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Velero">Velero</SelectItem>
+                            <SelectItem value="Lancha">Lancha</SelectItem>
+                            <SelectItem value="Yate">Yate</SelectItem>
+                            <SelectItem value="Catamarán">Catamarán</SelectItem>
+                            <SelectItem value="Bote">Bote</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="emb-eslora">Eslora (m)</Label>
+                        <Input id="emb-eslora" placeholder="Ej: 12.5" value={form.eslora} onChange={(e) => setForm({ ...form, eslora: e.target.value })} required />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="emb-socio">Socio Propietario</Label>
+                      <Select value={form.id_socio} onValueChange={(v) => setForm({ ...form, id_socio: v })}>
+                        <SelectTrigger id="emb-socio"><SelectValue placeholder="Seleccionar socio" /></SelectTrigger>
+                        <SelectContent>
+                          {socios.map((s) => (
+                            <SelectItem key={s.id_socio} value={String(s.id_socio)}>
+                              {s.nombres} {s.apellidos}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {errorForm && (
+                      <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3">
+                        <p className="text-sm text-destructive font-medium">{errorForm}</p>
+                      </div>
+                    )}
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button type="button" variant="outline" onClick={() => setOpenNew(false)} disabled={enviando}>Cancelar</Button>
+                      <Button type="submit" disabled={enviando || !form.tipo} className="bg-blue-900 text-white">
+                        {enviando ? "Registrando..." : "Registrar"}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Matrícula</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Eslora</TableHead>
+                    <TableHead>Propietario</TableHead>
+                    <TableHead>Capitanía</TableHead>
+                    <TableHead>Acción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cargandoFlota ? (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">Cargando flota...</TableCell></TableRow>
+                  ) : errorFlota ? (
+                    <TableRow><TableCell colSpan={7} className="text-center text-destructive py-10">{errorFlota}</TableCell></TableRow>
+                  ) : embarcaciones.length === 0 ? (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">No hay embarcaciones registradas.</TableCell></TableRow>
+                  ) : (
+                    embarcaciones.map((e) => (
+                      <TableRow key={e.id_embarcacion}>
+                        <TableCell className="font-medium">{e.nombre_nave}</TableCell>
+                        <TableCell className="text-muted-foreground font-mono">{e.matricula}</TableCell>
+                        <TableCell className="text-muted-foreground">{e.tipo}</TableCell>
+                        <TableCell className="text-muted-foreground">{e.eslora}m</TableCell>
+                        <TableCell>{e.nombres ? `${e.nombres} ${e.apellidos}` : `Socio #${e.id_socio}`}</TableCell>
+                        <TableCell><CapitaniaBadge estado={e.estado_capitania} /></TableCell>
+                        <TableCell>
+                          {e.estado_capitania === "Pendiente" && (
+                            <Button size="sm" variant="outline" className="gap-1 text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleValidar(e.id_embarcacion, e.nombre_nave)}>
+                              <CheckCircle2 className="h-3.5 w-3.5" /> Validar
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── TAB: RADAS ─────────────────────────────────────────────────── */}
+        <TabsContent value="radas">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Mapa de Espacios de Amarre</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Haz clic en una rada disponible para asignar una nave, o en una ocupada para liberarla.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {radas.length > 0 ? radas.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`rounded-lg border p-4 text-center space-y-1 ${radaClasses(r.estado)}`}
+                    onClick={() => handleRadaClick(r.id, r.estado)}
+                  >
+                    <p className="font-bold text-sm">{r.codigo}</p>
+                    <p className="text-xs font-medium">{r.estado}</p>
+                    {r.embarcacion && <p className="text-xs opacity-80">{r.embarcacion}</p>}
+                  </div>
+                )) : (
+                  <p className="text-sm text-muted-foreground col-span-full py-4">No hay radas registradas en la base de datos.</p>
+                )}
+              </div>
+              <div className="flex gap-4 mt-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-teal-200 border border-teal-300" /> Disponible</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-900" /> Ocupado</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-200 border border-slate-300" /> Mantenimiento</span>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── TAB: TRIPULANTES ───────────────────────────────────────────── */}
+        <TabsContent value="tripulantes">
+          <FormularioTripulante />
+        </TabsContent>
+      </Tabs>
+
+      {/* ── Dialog Asignar / Liberar Rada ──────────────────────────────── */}
+      <Dialog open={!!radaDialog} onOpenChange={(v) => { if (!v) setRadaDialog(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{radaDialog?.modo === "asignar" ? "Asignar Embarcación" : "Liberar Rada"}</DialogTitle>
+          </DialogHeader>
+          {radaDialog?.modo === "asignar" ? (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>Embarcación sin rada</Label>
+                <Select value={embSeleccionada} onValueChange={setEmbSeleccionada}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar nave validada" /></SelectTrigger>
+                  <SelectContent>
+                    {embSinRada.length > 0 ? (
+                      embSinRada.map((e) => (
+                        <SelectItem key={e.id_embarcacion} value={String(e.id_embarcacion)}>
+                          {e.nombre_nave} ({e.tipo})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>No hay naves validadas disponibles</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {embSinRada.length === 0 && (
+                  <p className="text-xs text-yellow-600 mt-2">
+                    * Solo las naves aprobadas por Capitanía que no tengan rada asignada aparecerán aquí.
+                  </p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setRadaDialog(null)}>Cancelar</Button>
+                <Button onClick={handleAsignar} disabled={!embSeleccionada || embSeleccionada === "none"} className="bg-blue-900 text-white">Asignar</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">¿Confirmas liberar este espacio de amarre?</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setRadaDialog(null)}>Cancelar</Button>
+                <Button variant="destructive" onClick={handleLiberar}>Liberar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
