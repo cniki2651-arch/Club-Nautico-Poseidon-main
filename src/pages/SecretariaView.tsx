@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { 
   ClipboardList, Users, AlertTriangle, Eye, FileText, 
   CreditCard, Search, Filter 
@@ -232,8 +233,10 @@ export default function SecretariaView() {
       });
 
       if (!res.ok) throw new Error("No se pudo insertar el cargo.");
-      
-      alert("¡Servicio registrado correctamente al Socio!");
+
+      toast.success("Servicio registrado exitosamente", {
+        description: "El cargo ha sido añadido al estado de cuenta del socio.",
+      });
       setServicioDialog(false);
       setTipoDocServicio("DNI");
       setSocioEncontrado(null);
@@ -243,7 +246,9 @@ export default function SecretariaView() {
       setDescripcionServicio("");
       setNombreInstructor("");
     } catch (err) {
-      alert("Error al registrar servicio: Verifique que el DNI pertenezca a un socio registrado o revise la conexión.");
+      toast.error("Error al registrar el servicio", {
+        description: err instanceof Error ? err.message : "Verifique que el DNI pertenezca a un socio registrado o revise la conexión.",
+      });
     } finally {
       setGuardandoServicio(false);
     }
