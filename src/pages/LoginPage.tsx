@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react"; 
 import { useRole } from "@/contexts/RoleContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -41,21 +41,20 @@ export default function LoginPage() {
         localStorage.setItem("refreshToken", data.refreshToken);
         localStorage.setItem("id_rol", String(data.usuario.id_rol));
         
-       
-         // 1. Definimos los tipos permitidos para que TypeScript no se queje
-const rolesMap: Record<number, "Jefe" | "Secretaria" | "Naviero" | "Finanzas"> = {
-  1: "Jefe",
-  2: "Secretaria",
-  3: "Naviero",
-  4: "Finanzas"
-};
+        // 1. Definimos los tipos permitidos para que TypeScript no se queje
+        const rolesMap: Record<number, "Jefe" | "Secretaria" | "Naviero" | "Finanzas"> = {
+          1: "Jefe",
+          2: "Secretaria",
+          3: "Naviero",
+          4: "Finanzas"
+        };
 
-// 2. Obtenemos el nombre del rol usando el ID que viene del servidor
-const roleName = rolesMap[data.usuario.id_rol];
+        // 2. Obtenemos el nombre del rol usando el ID que viene del servidor
+        const roleName = rolesMap[data.usuario.id_rol];
 
-if (roleName) {
-  setCurrentRole(roleName); // Ahora sí funcionará sin errores
-}
+        if (roleName) {
+          setCurrentRole(roleName); // Ahora sí funcionará sin errores
+        }
         toast({
           title: "¡Bienvenido a bordo!",
           description: `Has ingresado como ${data.usuario.nombres}`,
@@ -99,6 +98,15 @@ if (roleName) {
 
       {/* 2. OVERLAY */}
       <div className="absolute inset-0 bg-blue-950/60 backdrop-blur-[2px]" />
+
+      {/* BOTÓN VOLVER  */}
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#cc9a1b] bg-[#cc9a1b]/10 hover:bg-[#cc9a1b]/20 border border-[#cc9a1b]/30 rounded-xl backdrop-blur-md transition-all active:scale-95 group"
+      >
+        <ArrowLeft className="h-4 w-4 transform group-hover:-translate-x-1 transition-transform text-[#cc9a1b]" />
+        Volver al Inicio
+      </button>
 
       {/* 3. CUADRO DE LOGIN */}
       <motion.div 

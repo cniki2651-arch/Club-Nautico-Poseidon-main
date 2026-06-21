@@ -16,6 +16,7 @@ import SociosPage from "./pages/SociosPage";
 import EmbarcacionesPage from "./pages/EmbarcacionesPage";
 import ZarpesPage from "./pages/ZarpesPage";
 import FacturacionPage from "./pages/FacturacionPage";
+import DashboardCobranza from "./pages/DashboardCobranza";
 import NotFound from "./pages/NotFound";
 
 import UsuariosPage from "./pages/UsuariosPage";
@@ -57,6 +58,11 @@ const App = () => (
                     <Route path="facturacion" element={
                       <RoleGuard allowed={["Finanzas"]}>
                         <FacturacionPage />
+                      </RoleGuard>
+                    } />
+                    <Route path="morosidad" element={
+                      <RoleGuard allowed={["Cobranza"]}>
+                        <DashboardCobranza />
                       </RoleGuard>
                     } />
                     <Route path="aprobaciones" element={<JefeView />} />

@@ -50,7 +50,7 @@ interface UsuarioAPI {
   id_rol:     number;
 }
 
-type Rol = "Secretaria" | "Naviero" | "Finanzas" | "Jefe";
+type Rol = "Secretaria" | "Naviero" | "Finanzas" | "Jefe" | "Cobranza";
 
 // Shape interno para la tabla
 interface Usuario {
@@ -72,6 +72,7 @@ const rolColors: Record<Rol, string> = {
   Secretaria: "bg-secondary/10 text-secondary border-secondary/20",
   Naviero:    "bg-accent text-accent-foreground border-accent",
   Finanzas:   "bg-success/10 text-success border-success/20",
+  Cobranza:   "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 // id_rol numérico → nombre visual
@@ -80,6 +81,7 @@ const rolPorId: Record<number, Rol> = {
   2: "Secretaria",
   3: "Naviero",
   4: "Finanzas",
+  5: "Cobranza",
 };
 
 // Nombre de rol → id_rol numérico (para el POST)
@@ -88,6 +90,7 @@ const rolIdMap: Record<Rol, number> = {
   Secretaria: 2,
   Naviero:    3,
   Finanzas:   4,
+  Cobranza:   5,
 };
 
 // ---------------------------------------------------------------------------
@@ -492,6 +495,7 @@ export default function UsuariosPage() {
                   <SelectItem value="Secretaria">Secretaría </SelectItem>
                   <SelectItem value="Naviero">Naviero </SelectItem>
                   <SelectItem value="Finanzas">Finanzas </SelectItem>
+                  <SelectItem value="Cobranza">Cobranza </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -571,6 +575,7 @@ export default function UsuariosPage() {
                   <SelectItem value="Secretaria">Secretaría </SelectItem>
                   <SelectItem value="Naviero">Naviero </SelectItem>
                   <SelectItem value="Finanzas">Finanzas </SelectItem>
+                  <SelectItem value="Cobranza">Cobranza </SelectItem>
                 </SelectContent>
               </Select>
             </div>

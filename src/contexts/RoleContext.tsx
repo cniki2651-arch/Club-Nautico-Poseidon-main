@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState } from "react";
 
-export type Role = "Secretaria" | "Jefe" | "Naviero" | "Finanzas";
+export type Role = "Secretaria" | "Jefe" | "Naviero" | "Finanzas" | "Cobranza";
 
 const rolesMap: Record<number, Role> = {
   1: "Jefe",
   2: "Secretaria",
   3: "Naviero",
   4: "Finanzas",
+  5: "Cobranza",
 };
 
 function roleFromStorage(): Role | null {

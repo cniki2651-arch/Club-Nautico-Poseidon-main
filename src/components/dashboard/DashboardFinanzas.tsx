@@ -1,20 +1,63 @@
-import { DollarSign, AlertTriangle, CreditCard, TrendingDown } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { socios, cuentas } from "@/data/mockData";
+import { useState, useEffect } from "react";
+import { DollarSign, Receipt, FileCheck, Users } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+
+// ===================================================================
+// "Inicio" para el rol Finanzas: resumen ejecutivo simple.
+// El detalle completo (Estados de Cuenta, Consumos Pendientes,
+// Fraccionamiento de Deuda) vive en FacturacionPage.tsx ("Panel
+// Financiero" en el menú lateral) — aquí solo se muestran KPIs.
+//
+// La morosidad NO vive aquí: es responsabilidad de Cobranzas
+// (ver DashboardCobranza.tsx / "Gestión de Morosidad").
+// ===================================================================
+
+interface SocioConConsumos {
+  id_socio: number;
+  total_consumos: number;
+  consumos: unknown[];
+}
+
+function fmt(n: number) {
+  return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export default function DashboardFinanzas() {
-  const morosos    = cuentas.filter((c) => c.estado === "Moroso");
-  const alDia      = cuentas.filter((c) => c.estado === "Al día");
-  const deudaTotal = morosos.reduce((acc, c) => acc + c.total, 0);
-  const cobrado    = alDia.reduce((acc, c) => acc + c.total, 0);
+  const [consumosPendientes, setConsumosPendientes] = useState<SocioConConsumos[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    const fetchResumen = async () => {
+      setCargando(true);
+      try {
+        const token = localStorage.getItem("accessToken");
+        const res = await fetch("https://api-poseidon.onrender.com/api/facturacion/consumos-pendientes", {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const data: SocioConConsumos[] = await res.json();
+        setConsumosPendientes(data);
+      } catch {
+        /* Silencioso: si falla, los KPIs quedan en 0 */
+      } finally {
+        setCargando(false);
+      }
+    };
+    fetchResumen();
+  }, []);
+
+  const totalPendiente = consumosPendientes.reduce((acc, s) => acc + s.total_consumos, 0);
+  const sociosConPendientes = consumosPendientes.length;
+  const totalConsumosRegistrados = consumosPendientes.reduce((acc, s) => acc + s.consumos.length, 0);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Panel de Finanzas</h1>
-        <p className="text-muted-foreground text-sm">Estado financiero del Club Náutico Poseidón</p>
+        <p className="text-muted-foreground text-sm">Resumen general del estado financiero del Club</p>
       </div>
 
       {/* KPIs */}
@@ -23,27 +66,11 @@ export default function DashboardFinanzas() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Deuda por Cobrar</p>
-                <p className="text-2xl font-bold text-foreground">S/ {deudaTotal.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Pendiente de Facturar</p>
+                <p className="text-2xl font-bold text-foreground">{cargando ? "…" : fmt(totalPendiente)}</p>
               </div>
-              <div className="p-2.5 rounded-lg bg-destructive/10">
-                <DollarSign className="h-5 w-5 text-destructive" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Socios Morosos</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {socios.filter((s) => s.estado === "Moroso").length}
-                </p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
+              <div className="p-2.5 rounded-lg bg-amber-500/10">
+                <DollarSign className="h-5 w-5 text-amber-600" />
               </div>
             </div>
           </CardContent>
@@ -53,62 +80,43 @@ export default function DashboardFinanzas() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Pagos Recibidos</p>
-                <p className="text-2xl font-bold text-foreground">S/ {cobrado.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Socios con Consumos Pendientes</p>
+                <p className="text-2xl font-bold text-foreground">{cargando ? "…" : sociosConPendientes}</p>
+              </div>
+              <div className="p-2.5 rounded-lg bg-accent">
+                <Users className="h-5 w-5 text-secondary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Consumos Registrados</p>
+                <p className="text-2xl font-bold text-foreground">{cargando ? "…" : totalConsumosRegistrados}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-success/10">
-                <CreditCard className="h-5 w-5 text-success" />
+                <Receipt className="h-5 w-5 text-success" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabla de socios morosos */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-            Socios Morosos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead className="text-right">Membresía</TableHead>
-                <TableHead className="text-right">Cafetería</TableHead>
-                <TableHead className="text-right">Intereses</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {morosos.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    No hay socios morosos.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                morosos.map((c) => (
-                  <TableRow key={c.socioId}>
-                    <TableCell className="font-medium">{c.nombre}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">S/ {c.membresia}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">S/ {c.cafeteria}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">S/ {c.intereses}</TableCell>
-                    <TableCell className="text-right font-semibold text-destructive">S/ {c.total.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Moroso
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+      <Card className="border-none shadow-sm">
+        <CardContent className="p-6 flex items-start gap-3">
+          <div className="p-2.5 rounded-lg bg-blue-500/10 shrink-0">
+            <FileCheck className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">¿Listo para facturar el mes?</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Ve a <span className="font-medium">Panel Financiero</span> para revisar el detalle de consumos
+              pendientes por socio y generar la facturación mensual.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

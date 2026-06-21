@@ -33,10 +33,30 @@ import gallery6 from "@/assets/gallery-6.jpg";
 const navLinks = ["Inicio", "Nosotros", "Servicios", "Galería", "Contacto"];
 
 const services = [
-  { icon: Award, title: "Membresía Exclusiva", desc: "Acceso a instalaciones premium y beneficios únicos para socios y sus familias." },
-  { icon: Ship, title: "Radas y Amarres de Seguridad", desc: "Espacios de fondeo seguros y amarres modernos para todo tipo de embarcaciones." },
-  { icon: GraduationCap, title: "Escuela de Navegación y Buceo", desc: "Cursos certificados para principiantes y avanzados con instructores profesionales." },
-  { icon: Waves, title: "Zonas de Recreación", desc: "Piscinas, cafetería gourmet y áreas sociales con vista al mar." },
+  { 
+    icon: Award, 
+    title: "Membresía Exclusiva", 
+    desc: "Acceso a instalaciones premium y beneficios únicos para socios y sus familias.",
+    image: gallery4 
+  },
+  { 
+    icon: Ship, 
+    title: "Radas y Amarres de Seguridad", 
+    desc: "Espacios de fondeo seguros y amarres modernos para todo tipo de embarcaciones.",
+    image: gallery1 
+  },
+  { 
+    icon: GraduationCap, 
+    title: "Escuela de Navegación y Buceo", 
+    desc: "Cursos certificados para principiantes y avanzados con instructores profesionales.",
+    image: gallery6 
+  },
+  { 
+    icon: Waves, 
+    title: "Zonas de Recreación", 
+    desc: "Piscinas, cafetería gourmet y áreas sociales con vista al mar.",
+    image: gallery5 
+  },
 ];
 
 const galleryImages = [
@@ -196,33 +216,55 @@ const LandingPage = () => {
         </div> 
       </section>
 
-     {/* SERVICIOS — Fondo celeste brisa marina */}
-      <section id="servicios" className="py-20 px-4 bg-sky-50">
-        <div className="max-w-6xl mx-auto text-center mb-12">
-          <div className="flex items-center justify-center gap-3 mb-3">
-            {/* Cambiado bg-amber-400 por tu color personalizado #cc9a1b */}
-            <div className="h-1 w-10 bg-[#cc9a1b] rounded-full" />
-            <h2 className="text-3xl font-bold text-blue-900">Nuestros Servicios</h2>
-            <div className="h-1 w-10 bg-[#cc9a1b] rounded-full" />
-          </div>
-          <p className="text-blue-700/70 max-w-xl mx-auto">Todo lo que necesitas para disfrutar del mar con seguridad y confort.</p>
-        </div>
+     {/* SERVICIOS  */}
+<section id="servicios" className="py-20 px-4 bg-sky-50">
+  <div className="max-w-6xl mx-auto text-center mb-12">
+    <div className="flex items-center justify-center gap-3 mb-3">
+      <div className="h-1 w-10 bg-[#cc9a1b] rounded-full" />
+      <h2 className="text-3xl font-bold text-blue-900">Nuestros Servicios</h2>
+      <div className="h-1 w-10 bg-[#cc9a1b] rounded-full" />
+    </div>
+    <p className="text-blue-700/70 max-w-xl mx-auto">Todo lo que necesitas para disfrutar del mar con seguridad y confort.</p>
+  </div>
 
-        <div className="max-w-6xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {services.map((s) => (
-            <Card key={s.title} className="text-center bg-white border-0 shadow-lg shadow-blue-900/10 hover:shadow-xl hover:shadow-blue-900/15 transition-shadow">
-              <CardContent className="pt-8 pb-6 px-6 flex flex-col items-center gap-4">
-                <div className="h-14 w-14 rounded-full bg-blue-50 flex items-center justify-center">
-                  {/* Cambié también el color del icono para que combine con el nuevo dorado si lo prefieres */}
-                  <s.icon className="h-7 w-7 text-[#cc9a1b]" />
-                </div>
-                <h3 className="font-semibold text-blue-900">{s.title}</h3>
-                <p className="text-sm text-blue-700/60">{s.desc}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
+  <div className="max-w-6xl mx-auto grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {services.map((s) => (
+      <Card 
+        key={s.title} 
+        className="group relative text-center border-0 shadow-xl overflow-hidden rounded-xl h-[320px] transition-all duration-500 ease-out transform hover:-translate-y-2 hover:scale-105 hover:shadow-2xl hover:shadow-blue-900/30"
+      >
+        {/* IMAGEN DE FONDO: */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
+          style={{ backgroundImage: `url(${s.image})` }}
+        />
+
+        {/* CAPA (OVERLAY): Filtro translúcido que cambia de color al hacer hover */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/95 via-white/95 to-white/90 group-hover:from-blue-950/90 group-hover:via-blue-950/85 group-hover:to-blue-900/90 transition-all duration-500" />
+
+        {/* CONTENIDO DE LA TARJETA: Todo el texto cambia a blanco dinámicamente */}
+        <CardContent className="relative z-10 h-full pt-8 pb-6 px-5 flex flex-col items-center justify-between gap-2">
+          
+          {/* Contenedor del ícono */}
+          <div className="h-14 w-14 rounded-full bg-blue-50/80 flex items-center justify-center transition-all duration-300 group-hover:bg-[#cc9a1b] group-hover:scale-110 shadow-md">
+            <s.icon className="h-7 w-7 text-[#cc9a1b] transition-colors duration-300 group-hover:text-white" />
+          </div>
+          
+          {/* Bloque de Texto */}
+          <div className="space-y-3 flex-1 flex flex-col justify-center">
+            <h3 className="font-bold text-blue-900 text-lg transition-colors duration-300 group-hover:text-amber-400">
+              {s.title}
+            </h3>
+            <p className="text-sm text-blue-700/70 font-medium transition-colors duration-300 group-hover:text-white/90 leading-relaxed">
+              {s.desc}
+            </p>
+          </div>
+
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+</section>
 
       {/* GALERÍA — Fondo blanco con toque azul */}
       <section id="galeria" className="py-20 px-4 bg-white">

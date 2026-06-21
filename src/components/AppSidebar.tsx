@@ -1,7 +1,9 @@
+import { useState, useEffect } from "react";  
 import {
   Search, ClipboardCheck, BarChart3,
   Navigation, Ship, DollarSign, UserPlus,
   LogOut, UserCog, LayoutDashboard,
+  Sun, Moon, ShieldAlert
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -39,8 +41,15 @@ const menuByRole: Record<Role, { title: string; url: string; icon: React.Element
   Finanzas: [
     itemInicio,
     { title: "Panel Financiero", url: "/dashboard/facturacion", icon: DollarSign },
+    
+  ],
+  
+  Cobranza: [
+    itemInicio,
+    { title: "Gestión de Morosidad", url: "/dashboard/morosidad", icon: ShieldAlert },
   ],
 };
+  
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
@@ -48,7 +57,27 @@ export function AppSidebar() {
   const location = useLocation();
   const { currentRole } = useRole();
 
-  const items = menuByRole[currentRole];
+  // 🚀 NUEVO: Estado e Inicialización del Modo Oscuro
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark") || 
+             localStorage.getItem("theme") === "dark";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (darkMode) {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
+
+  const items = currentRole ? menuByRole[currentRole] : [];
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
@@ -110,8 +139,45 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border/50">
+      <SidebarFooter className="p-4 border-t border-sidebar-border/50 gap-3">
         <SidebarMenu>
+          
+          {/*  NUEVO: Selector de Modo Claro / Oscuro Adaptable */}
+          <SidebarMenuItem>
+            {collapsed ? (
+              // Vista cuando el Sidebar está Minimizado (Botón de alternancia rápida)
+              <SidebarMenuButton
+                onClick={() => setDarkMode(!darkMode)}
+                className="text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors justify-center"
+                tooltip={darkMode ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+              >
+                {darkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+              </SidebarMenuButton>
+            ) : (
+              // Vista Premium Completa cuando el Sidebar está Expandido
+              <div className="flex items-center justify-between p-1 bg-sidebar-accent/40 rounded-xl border border-sidebar-border/40 w-full">
+                <span className="text-xs font-medium text-sidebar-foreground/60 pl-2">Tema</span>
+                <div className="flex bg-sidebar-background p-0.5 rounded-lg border border-sidebar-border/60 shadow-sm">
+                  <button
+                    onClick={() => setDarkMode(false)}
+                    className={`p-1.5 rounded-md transition-all ${!darkMode ? "bg-sidebar-accent text-sidebar-primary shadow-sm" : "text-sidebar-foreground/40 hover:text-sidebar-foreground"}`}
+                    title="Modo Claro"
+                  >
+                    <Sun className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDarkMode(true)}
+                    className={`p-1.5 rounded-md transition-all ${darkMode ? "bg-sidebar-accent text-sidebar-primary shadow-sm" : "text-sidebar-foreground/40 hover:text-sidebar-foreground"}`}
+                    title="Modo Oscuro"
+                  >
+                    <Moon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </SidebarMenuItem>
+
+          {/* Botón de Logout Tradicional */}
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}
@@ -125,7 +191,7 @@ export function AppSidebar() {
         </SidebarMenu>
 
         {!collapsed && (
-          <p className="mt-4 text-[10px] text-sidebar-foreground/30 text-center uppercase tracking-widest font-medium">
+          <p className="mt-2 text-[10px] text-sidebar-foreground/30 text-center uppercase tracking-widest font-medium">
             © 2026 Club Poseidón
           </p>
         )}

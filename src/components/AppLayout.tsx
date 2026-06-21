@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 
-const roles: Role[] = ["Jefe", "Secretaria", "Naviero", "Finanzas"];
+const roles: Role[] = ["Jefe", "Secretaria", "Naviero", "Finanzas", "Cobranza"];
 
 interface AppLayoutProps {
   children: React.ReactNode;

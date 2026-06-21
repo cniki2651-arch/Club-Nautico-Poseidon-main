@@ -1,17 +1,18 @@
 import { useState, useEffect } from "react";
-import { ClipboardList, Users, AlertTriangle, Eye, FileText } from "lucide-react";
+import { 
+  ClipboardList, Users, AlertTriangle, Eye, FileText, 
+  CreditCard, Search, Filter 
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import ModalNuevaSolicitud from "@/components/ModalNuevaSolicitud";
 
-// ---------------------------------------------------------------------------
-// Tipo que devuelve el backend
-// ---------------------------------------------------------------------------
 interface SolicitudAPI {
   id_solicitud: number;
   dni: string;
@@ -24,22 +25,109 @@ interface SolicitudAPI {
   observacion: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Componente principal
-// ---------------------------------------------------------------------------
 export default function SecretariaView() {
+  //  ESTADOS DE FILTRADO DINÁMICO 
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("Todos");
+
+  //  ESTADOS OPERATIVOS 
   const [solicitudes, setSolicitudes] = useState<SolicitudAPI[]>([]);
   const [cargandoLista, setCargandoLista] = useState(true);
   const [errorLista, setErrorLista] = useState<string | null>(null);
+  
   const [metricas, setMetricas] = useState({
     solicitudesEnEspera: 0,
     sociosActivos: 0,
     alertas: 0,
   });
+
+  // Modales
   const [motivoDialog, setMotivoDialog] = useState(false);
   const [motivoSeleccionado, setMotivoSeleccionado] = useState<string>("");
+  const [servicioDialog, setServicioDialog] = useState(false);
 
-  // ── Cargar métricas ───────────────────────────────────────────────────────
+  // Formulario de Servicio
+  const [tipoDocServicio, setTipoDocServicio] = useState("DNI");
+  const [dniSocioServicio, setDniSocioServicio] = useState("");
+  const [categoriaServicio, setCategoriaServicio] = useState("Anclaje / Amarre");
+  const [montoServicio, setMontoServicio] = useState("");
+  const [descripcionServicio, setDescripcionServicio] = useState("");
+  const [nombreInstructor, setNombreInstructor] = useState("");
+  const [guardandoServicio, setGuardandoServicio] = useState(false);
+
+  // Búsqueda de socio por documento (verificación visual antes de registrar)
+  const [socioEncontrado, setSocioEncontrado] = useState<{ nombres: string; apellidos: string; clasificacion: string } | null>(null);
+  const [buscandoSocio, setBuscandoSocio] = useState(false);
+  const [errorBusquedaSocio, setErrorBusquedaSocio] = useState<string | null>(null);
+
+  // Detecta si el servicio elegido corresponde a un instructor (requiere capturar su nombre)
+  const esServicioInstructor =
+    categoriaServicio === "Instructor de Natación" ||
+    categoriaServicio === "Instructor de Buceo" ||
+    categoriaServicio === "Escuela de Navegación";
+
+  // Precios preestablecidos por servicio (vienen del backend)
+  const [preciosServicios, setPreciosServicios] = useState<Record<string, number>>({});
+  const [cargandoPrecios, setCargandoPrecios] = useState(false);
+
+  //  CONSULTA AL BACKEND: PRECIOS DE SERVICIOS 
+  const fetchPreciosServicios = async () => {
+    setCargandoPrecios(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("https://api-poseidon.onrender.com/api/consumos/precios", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) return;
+      const data: { servicio: string; monto: number }[] = await res.json();
+      const mapa: Record<string, number> = {};
+      data.forEach((item) => { mapa[item.servicio] = item.monto; });
+      setPreciosServicios(mapa);
+    } catch {
+      /* Silencioso: si falla, el monto queda editable manualmente */
+    } finally {
+      setCargandoPrecios(false);
+    }
+  };
+
+  //  BUSCAR SOCIO POR DOCUMENTO (verificación visual antes de registrar)
+  const buscarSocioPorDocumento = async (tipoDoc: string, numero: string) => {
+    if (!numero.trim()) {
+      setSocioEncontrado(null);
+      setErrorBusquedaSocio(null);
+      return;
+    }
+    setBuscandoSocio(true);
+    setSocioEncontrado(null);
+    setErrorBusquedaSocio(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(
+        `https://api-poseidon.onrender.com/api/socios/buscar?tipo_doc=${tipoDoc}&numero=${numero}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorBusquedaSocio(data.mensaje || "No se encontró un socio con ese documento.");
+        return;
+      }
+      setSocioEncontrado(data);
+    } catch {
+      setErrorBusquedaSocio("Error de red al buscar el socio.");
+    } finally {
+      setBuscandoSocio(false);
+    }
+  };
+
+  // CONSULTA AL BACKEND: MÉTRICAS 
   const fetchMetricas = async () => {
     try {
       const token = localStorage.getItem("accessToken");
@@ -56,10 +144,10 @@ export default function SecretariaView() {
         sociosActivos: data.sociosActivos ?? 0,
         alertas: data.alertas ?? 0,
       });
-    } catch { /* silencioso */ }
+    } catch { /* Silencioso */ }
   };
 
-  // ── Cargar solicitudes ────────────────────────────────────────────────────
+  //  CONSULTA AL BACKEND: LISTAR SOLICITUDES 
   const fetchSolicitudes = async () => {
     setCargandoLista(true);
     setErrorLista(null);
@@ -75,7 +163,7 @@ export default function SecretariaView() {
       const data: SolicitudAPI[] = await res.json();
       setSolicitudes(data);
     } catch (err) {
-      setErrorLista(err instanceof Error ? err.message : "Error inesperado.");
+      setErrorLista(err instanceof Error ? err.message : "Error inesperado en la red.");
     } finally {
       setCargandoLista(false);
     }
@@ -84,9 +172,84 @@ export default function SecretariaView() {
   useEffect(() => {
     fetchMetricas();
     fetchSolicitudes();
+    fetchPreciosServicios();
   }, []);
 
-  // ── Generar PDF de notificación de rechazo ────────────────────────────────
+  //  AUTOCOMPLETAR MONTO SEGÚN SERVICIO SELECCIONADO 
+  useEffect(() => {
+    if (categoriaServicio === "Otros") return; // se ingresa manualmente
+    if (preciosServicios[categoriaServicio] !== undefined) {
+      setMontoServicio(String(preciosServicios[categoriaServicio]));
+    } else {
+      setMontoServicio("");
+    }
+  }, [categoriaServicio, preciosServicios]);
+
+  //  LIMPIAR NOMBRE DE INSTRUCTOR SI EL SERVICIO CAMBIA A UNO QUE NO LO REQUIERE 
+  useEffect(() => {
+    if (!esServicioInstructor) {
+      setNombreInstructor("");
+    }
+  }, [esServicioInstructor]);
+
+  //  LÓGICA DE FILTRADO EN TIEMPO REAL
+  const solicitudesFiltradas = solicitudes.filter((s) => {
+    const matchTexto = `${s.nombres} ${s.apellidos} ${s.dni}`.toLowerCase().includes(busqueda.toLowerCase());
+    const matchEstado = filtroEstado === "Todos" || s.estado === filtroEstado;
+    return matchTexto && matchEstado;
+  });
+
+  //  ENVÍO AL BACKEND CARGAR CONSUMO 
+  const handleRegistrarServicioSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (esServicioInstructor && !nombreInstructor.trim()) {
+      alert("Por favor ingrese el nombre del instructor que brindó el servicio.");
+      return;
+    }
+
+    setGuardandoServicio(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const descripcionFinal = esServicioInstructor
+        ? `Instructor: ${nombreInstructor}${descripcionServicio ? " — " + descripcionServicio : ""}`
+        : descripcionServicio || `Cargo por servicio de ${categoriaServicio}`;
+
+      const res = await fetch("https://api-poseidon.onrender.com/api/consumos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          tipo_doc: tipoDocServicio,
+          dni_socio: dniSocioServicio,
+          servicio: categoriaServicio,
+          monto: parseFloat(montoServicio),
+          descripcion: descripcionFinal,
+          fecha: new Date().toISOString(),
+        }),
+      });
+
+      if (!res.ok) throw new Error("No se pudo insertar el cargo.");
+      
+      alert("¡Servicio registrado correctamente al Socio!");
+      setServicioDialog(false);
+      setTipoDocServicio("DNI");
+      setSocioEncontrado(null);
+      setErrorBusquedaSocio(null);
+      setDniSocioServicio("");
+      setMontoServicio("");
+      setDescripcionServicio("");
+      setNombreInstructor("");
+    } catch (err) {
+      alert("Error al registrar servicio: Verifique que el DNI pertenezca a un socio registrado o revise la conexión.");
+    } finally {
+      setGuardandoServicio(false);
+    }
+  };
+
+  //  GENERADOR DE PDF OFICIAL
   const generarPDF = (s: SolicitudAPI) => {
     const fecha = new Date().toLocaleDateString("es-PE", {
       day: "2-digit", month: "long", year: "numeric",
@@ -94,56 +257,39 @@ export default function SecretariaView() {
     const logoUrl = `${window.location.origin}/logo.png`;
     const motivo = s.observacion ?? "Sin observación registrada.";
 
+    
     const html = [
       "<!DOCTYPE html>",
-      '<html lang="es">',
+      "<html lang='es'>",
       "<head>",
-      '  <meta charset="UTF-8" />',
-      `  <title>Notificacion_Rechazo_${s.tipo_doc_siglas || 'DNI'}_${s.dni}</title>`,
+      "  <meta charset='UTF-8' />",
+      `  <title>Notificacion_Observacion_${s.tipo_doc_siglas || 'DNI'}_${s.dni}</title>`,
       "  <style>",
-      "    @media print {",
-      "      @page { size: A4; margin: 0; }",
-      "      body  { padding: 2cm !important; box-sizing: border-box; }",
-      "    }",
-      "    body {",
-      "      font-family: Arial, sans-serif; font-size: 11pt;",
-      "      color: #1a1a1a; line-height: 1.4; padding: 2cm; box-sizing: border-box;",
-      "    }",
-      "    .header { text-align: center; border-bottom: 2px solid #1a3a5c;",
-      "              padding-bottom: 12px; margin-bottom: 20px; }",
+      "    @media print { @page { size: A4; margin: 0; } body { padding: 2cm !important; box-sizing: border-box; } }",
+      "    body { font-family: Arial, sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.4; padding: 2cm; box-sizing: border-box; }",
+      "    .header { text-align: center; border-bottom: 2px solid #1a3a5c; padding-bottom: 12px; margin-bottom: 20px; }",
       "    .header img { max-width: 120px; margin: 0 auto 10px; display: block; }",
-      "    .header h2  { margin: 4px 0 0; font-size: 13pt; color: #1a3a5c; letter-spacing: 1px; }",
-      "    .header p   { margin: 2px 0; font-size: 10pt; color: #555; }",
-      "    .fecha      { text-align: right; font-size: 10pt; color: #555; margin-bottom: 20px; }",
-      "    h1 { font-size: 12pt; text-align: center; text-transform: uppercase;",
-      "         letter-spacing: 1.5px; color: #1a3a5c; margin-bottom: 20px; }",
+      "    .header h2 { margin: 4px 0 0; font-size: 13pt; color: #1a3a5c; letter-spacing: 1px; }",
+      "    .header p { margin: 2px 0; font-size: 10pt; color: #555; }",
+      "    .fecha { text-align: right; font-size: 10pt; color: #555; margin-bottom: 20px; }",
+      "    h1 { font-size: 12pt; text-align: center; text-transform: uppercase; letter-spacing: 1.5px; color: #1a3a5c; margin-bottom: 20px; }",
       "    .cuerpo { margin-bottom: 16px; }",
-      "    .motivo { border: 1.5px solid #c0392b; border-radius: 6px;",
-      "              padding: 12px 16px; background: #fff5f5; margin: 16px 0; }",
+      "    .motivo { border: 1.5px solid #c0392b; border-radius: 6px; padding: 12px 16px; background: #fff5f5; margin: 16px 0; }",
       "    .motivo p { margin: 0; font-weight: bold; color: #c0392b; font-size: 10.5pt; text-align: justify; }",
-      "    .cierre   { margin-top: 20px; }",
-      "    .firma-manuscrita {",
-      "      font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;",
-      "      font-size: 26px; color: #1a365d; margin: 30px 0 8px 0;",
-      "    }",
-      "    .firma-cargo {",
-      "      border-top: 1px solid #aaa; padding-top: 6px;",
-      "      width: 220px; font-size: 9pt; color: #555;",
-      "    }",
+      "    .cierre { margin-top: 20px; }",
+      "    .firma-manuscrita { font-family: 'Brush Script MT', 'Lucida Handwriting', cursive; font-size: 26px; color: #1a365d; margin: 30px 0 8px 0; }",
+      "    .firma-cargo { border-top: 1px solid #aaa; padding-top: 6px; width: 220px; font-size: 9pt; color: #555; }",
       "  </style>",
       "</head>",
       "<body>",
-      "  <div class=\"header\">",
-      `    <img src="${logoUrl}" alt="Logo Club Náutico Poseidón" />`,
+      "  <div class='header'>",
+      `    <img src='${logoUrl}' alt='Logo Club Náutico Poseidón' />`,
       "    <h2>CLUB NÁUTICO POSEIDÓN DEL PERÚ</h2>",
       "    <p>Secretaría de Admisiones</p>",
       "  </div>",
-      "",
-      `  <div class="fecha">Lima, ${fecha}</div>`,
-      "",
+      `  <div class='fecha'>Lima, ${fecha}</div>`,
       "  <h1>Notificación de Observación de Solicitud</h1>",
-      "",
-      "  <div class=\"cuerpo\">",
+      "  <div class='cuerpo'>",
       `    <p>Estimado(a) <strong>${s.nombres} ${s.apellidos}</strong>,</p>`,
       "    <p>",
       "      Le informamos que su solicitud de inscripción al Club Náutico Poseidón del Perú,",
@@ -152,12 +298,10 @@ export default function SecretariaView() {
       "      esta instancia por el siguiente motivo:",
       "    </p>",
       "  </div>",
-      "",
-      "  <div class=\"motivo\">",
-      `    <p>${motivo}</p>`,
-      "  </div>",
-      "",
-      "  <div class=\"cierre\">",
+      "  <div class='motivo'>",
+      `    <p>${motivo}</p>`,   
+      "  </div>",              
+      "  <div class='cierre'>",
       "    <p>",
       "      Le invitamos a subsanar el motivo indicado y presentar nuevamente su solicitud",
       "      para continuar con su proceso de inscripción. Nuestro equipo de Secretaría",
@@ -165,20 +309,18 @@ export default function SecretariaView() {
       "    </p>",
       "    <p>Atentamente,</p>",
       "  </div>",
-      "",
-      "  <div class=\"firma-manuscrita\">La Jefatura</div>",
-      "  <div class=\"firma-cargo\">",
+      "  <div class='firma-manuscrita'>La Jefatura</div>",
+      "  <div class='firma-cargo'>",
       "    Secretaría de Admisiones<br/>",
       "    Club Náutico Poseidón del Perú",
       "  </div>",
       "</body>",
-      "</html>",
+      "</html>"
     ].join("\n");
 
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
     document.body.appendChild(iframe);
-
     iframe.contentDocument?.open();
     iframe.contentDocument?.write(html);
     iframe.contentDocument?.close();
@@ -186,163 +328,201 @@ export default function SecretariaView() {
     iframe.onload = () => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-
-      setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-      }, 2000);
+      setTimeout(() => { if (document.body.contains(iframe)) document.body.removeChild(iframe); }, 2000);
     };
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Panel de Secretaría</h1>
-        <p className="text-muted-foreground text-sm">Gestión de inscripciones y solicitudes de nuevos socios</p>
+    <div className="space-y-6 p-1">
+      {/* Cabecera Principal */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-5 border-slate-200 dark:border-slate-800">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            Panel de Secretaría
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Gestione flujos de admisión y cargos recurrentes de socios activos.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <ModalNuevaSolicitud
+            onSuccess={() => { fetchMetricas(); fetchSolicitudes(); }}
+            triggerSize="default"
+            triggerClassName="bg-blue-600 text-white hover:bg-blue-700 font-medium px-4 py-2.5 rounded-xl shadow-sm transition-transform active:scale-95"
+          />
+          <Button 
+            className="gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 hover:from-amber-600 hover:to-amber-700 font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-transform active:scale-95 border-0"
+            onClick={() => setServicioDialog(true)}
+          >
+            <CreditCard className="h-4 w-4" />
+            Registrar Consumo
+          </Button>
+        </div>
       </div>
 
-      <ModalNuevaSolicitud
-        onSuccess={() => { fetchMetricas(); fetchSolicitudes(); }}
-        triggerSize="lg"
-        triggerClassName="gap-2 text-base px-6 py-5"
-      />
-
-      {/* ── Métricas ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Solicitudes en Espera</p>
-                <p className="text-2xl font-bold text-foreground">{metricas.solicitudesEnEspera}</p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-warning/10">
-                <ClipboardList className="h-5 w-5 text-warning" />
-              </div>
+      {/* Tarjetas Informativas */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Solicitudes en Espera</p>
+              <p className="text-3xl font-black text-slate-900 dark:text-white">{metricas.solicitudesEnEspera}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+              <ClipboardList className="h-6 w-6 text-amber-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Socios Activos</p>
-                <p className="text-2xl font-bold text-foreground">{metricas.sociosActivos}</p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-success/10">
-                <Users className="h-5 w-5 text-success" />
-              </div>
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Socios Activos</p>
+              <p className="text-3xl font-black text-slate-900 dark:text-white">{metricas.sociosActivos}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+              <Users className="h-6 w-6 text-emerald-500" />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Alertas</p>
-                <p className="text-2xl font-bold text-foreground">{metricas.alertas}</p>
-              </div>
-              <div className="p-2.5 rounded-lg bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </div>
+        <Card className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Alertas</p>
+              <p className="text-3xl font-black text-slate-900 dark:text-white">{metricas.alertas}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-rose-500/10 group-hover:bg-rose-500/20 transition-colors">
+              <AlertTriangle className="h-6 w-6 text-rose-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ── Tabla de solicitudes ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Últimas Solicitudes Ingresadas</CardTitle>
+      {/* Buscador Dinámico */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <Input 
+            type="text" 
+            placeholder="Buscar por nombre o DNI..." 
+            className="pl-9 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-lg text-sm"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Filtro:</span>
+          <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+            {["Todos", "Pendiente", "Aprobado", "Rechazado"].map((estado) => (
+              <button
+                key={estado}
+                onClick={() => setFiltroEstado(estado)}
+                
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                  filtroEstado === estado
+                    ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+              >
+                {estado}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabla Unificada */}
+      <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+          <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Cola de solicitudes en curso
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Documento</TableHead>
-                <TableHead>Nombre Completo</TableHead>
-                <TableHead>Clasificación</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+            <TableHeader className="bg-slate-50/20 dark:bg-slate-950/20">
+              <TableRow className="border-b border-slate-200 dark:border-slate-800">
+                <TableHead className="font-bold text-xs pl-6 py-3">Documento</TableHead>
+                <TableHead className="font-bold text-xs">Nombre Completo</TableHead>
+                <TableHead className="font-bold text-xs">Clasificación</TableHead>
+                <TableHead className="font-bold text-xs">Estado</TableHead>
+                <TableHead className="font-bold text-xs">Fecha</TableHead>
+                <TableHead className="font-bold text-xs text-right pr-6">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {cargandoLista ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    Cargando solicitudes
+                  <TableCell colSpan={6} className="text-center text-slate-400 dark:text-slate-500 py-10 text-sm">
+                    Cargando solicitudes desde el servidor náutico...
                   </TableCell>
                 </TableRow>
               ) : errorLista ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-destructive py-10">
+                  <TableCell colSpan={6} className="text-center text-rose-500 font-medium py-10 text-sm">
                     {errorLista}
                   </TableCell>
                 </TableRow>
-              ) : solicitudes.length === 0 ? (
+              ) : solicitudesFiltradas.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    No hay solicitudes registradas.
+                  <TableCell colSpan={6} className="text-center text-slate-400 py-10 text-sm">
+                    No se encontraron coincidencias en la bandeja.
                   </TableCell>
                 </TableRow>
               ) : (
-                solicitudes.map((s) => (
-                  <TableRow key={s.id_solicitud}>
-                    <TableCell className="font-medium text-xs"><span className="text-muted-foreground mr-1">{s.tipo_doc_siglas || 'DNI'}</span>{s.dni}</TableCell>
-                    <TableCell className="font-medium">{s.nombres} {s.apellidos}</TableCell>
+                solicitudesFiltradas.map((s) => (
+                  <TableRow key={s.id_solicitud} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors group">
+                    <TableCell className="font-mono text-xs pl-6 py-4">
+                      <span className="text-slate-400 mr-1.5 font-bold">{s.tipo_doc_siglas || "DNI"}</span>
+                      <span className="text-slate-700 dark:text-slate-300 font-semibold">{s.dni}</span>
+                    </TableCell>
+                    <TableCell className="font-semibold text-sm text-slate-900 dark:text-slate-100">{s.nombres} {s.apellidos}</TableCell>
                     <TableCell>
                       {s.clasificacion === "Pagador" ? (
-                        <Badge className="bg-success text-success-foreground hover:bg-success/90">Pagador</Badge>
+                        <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-none font-medium rounded-md">Pagador</Badge>
                       ) : s.clasificacion === "Renuente" ? (
-                        <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Renuente</Badge>
+                        <Badge className="bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-none font-medium rounded-md">Renuente</Badge>
                       ) : (
-                        <Badge className="bg-warning text-warning-foreground hover:bg-warning/90">
-                          {s.clasificacion || "Esporádico"}
-                        </Badge>
+                        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-none font-medium rounded-md">{s.clasificacion || "Esporádico"}</Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      {s.estado === "Rechazado" ? (
-                        <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Rechazado</Badge>
-                      ) : s.estado === "Aprobado" ? (
-                        <Badge className="bg-success text-success-foreground hover:bg-success/90">Aprobado</Badge>
+                      {s.estado === "Pendiente" ? (
+                        <Badge className="bg-amber-500 text-white font-bold px-2 py-0.5 rounded-md animate-pulse">Pendiente</Badge>
+                      ) : s.estado === "Rechazado" ? (
+                        <Badge className="bg-rose-600 text-white font-bold px-2 py-0.5 rounded-md">Rechazado</Badge>
                       ) : (
-                        <Badge className="bg-warning text-warning-foreground hover:bg-warning/90">{s.estado}</Badge>
+                        <Badge className="bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-md">Aprobado</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {s.fecha_creacion ? new Date(s.fecha_creacion).toLocaleDateString() : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {s.estado === "Rechazado" && s.observacion && (
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Ver motivo */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            aria-label="Ver motivo de rechazo"
-                            onClick={() => { setMotivoSeleccionado(s.observacion!); setMotivoDialog(true); }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {/* Generar PDF */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            aria-label="Generar notificación PDF"
-                            onClick={() => generarPDF(s)}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                    <TableCell className="text-xs text-slate-400">{s.fecha_creacion ? new Date(s.fecha_creacion).toLocaleDateString("es-PE") : "—"}</TableCell>
+                    <TableCell className="text-right pr-6">
+                      <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                        {/* Botones solo visibles para Rechazados */}
+                        {s.estado === "Rechazado" && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-lg"
+                              title="Ver Observaciones"
+                              onClick={() => { setMotivoSeleccionado(s.observacion || "Sin novedades adicionales en bandeja."); setMotivoDialog(true); }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg"
+                              title="Imprimir Notificación"
+                              onClick={() => generarPDF(s)}
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -352,19 +532,145 @@ export default function SecretariaView() {
         </CardContent>
       </Card>
 
-      {/* Modal de motivo de rechazo */}
-      <Dialog open={motivoDialog} onOpenChange={setMotivoDialog}>
-        <DialogContent className="sm:max-w-md">
+      {/* Modal Registrar Servicio (Integrado a API) */}
+      <Dialog open={servicioDialog} onOpenChange={setServicioDialog}>
+        <DialogContent className="sm:max-w-md rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Eye className="h-5 w-5 text-destructive" />
-              Motivo de rechazo
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
+              <CreditCard className="h-5 w-5 text-amber-500" />
+              Registrar Servicio a Socio
             </DialogTitle>
-            <DialogDescription>
-              Copia este texto para notificar al postulante sobre el motivo de su rechazo.
+            <DialogDescription className="text-slate-400">
+              Registre servicios adicionales o cargos recurrentes a socios activos. El cargo quedará marcado como <strong>Pendiente de Facturación</strong> hasta el cierre de mes.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-md border bg-muted/40 px-4 py-3 text-sm text-foreground leading-relaxed">
+          <form onSubmit={handleRegistrarServicioSubmit} className="space-y-4 py-1">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Documento del Titular</label>
+              <div className="flex gap-2">
+                <select
+                  className="flex h-10 w-24 shrink-0 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 text-sm text-slate-800 dark:text-slate-200"
+                  value={tipoDocServicio}
+                  onChange={(e) => {
+                    setTipoDocServicio(e.target.value);
+                    if (dniSocioServicio.trim()) buscarSocioPorDocumento(e.target.value, dniSocioServicio);
+                  }}
+                >
+                  <option value="DNI">DNI</option>
+                  <option value="CE">CE</option>
+                  <option value="PAS">PAS</option>
+                </select>
+                <Input
+                  type="text"
+                  placeholder={tipoDocServicio === "DNI" ? "Ej. 60988743" : "Ej. AB123456"}
+                  maxLength={tipoDocServicio === "DNI" ? 8 : 12}
+                  value={dniSocioServicio}
+                  onChange={(e) => {
+                    setDniSocioServicio(e.target.value);
+                    setSocioEncontrado(null);
+                    setErrorBusquedaSocio(null);
+                  }}
+                  onBlur={() => buscarSocioPorDocumento(tipoDocServicio, dniSocioServicio)}
+                  required
+                  className="rounded-lg bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                />
+              </div>
+              {buscandoSocio && (
+                <p className="text-xs text-slate-400">Buscando socio...</p>
+              )}
+              {socioEncontrado && (
+                <p className="text-xs text-emerald-600 font-medium">
+                  ✓ {socioEncontrado.nombres} {socioEncontrado.apellidos} · {socioEncontrado.clasificacion}
+                </p>
+              )}
+              {errorBusquedaSocio && (
+                <p className="text-xs text-rose-500">{errorBusquedaSocio}</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Servicio</label>
+              <select className="w-full flex h-10 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm text-slate-800 dark:text-slate-200" value={categoriaServicio} onChange={(e) => setCategoriaServicio(e.target.value)}>
+                <optgroup label="Servicios Náuticos">
+                  <option value="Anclaje / Amarre">Anclaje / Radas y Amarres</option>
+                  <option value="Uso de Rampa / Grúa">Uso de Rampa y Grúa</option>
+                  <option value="Cabotaje">Cabotaje</option>
+                  <option value="Traslado de Nave">Traslado de Nave</option>
+                </optgroup>
+                <optgroup label="Instalaciones del Club">
+                  <option value="Piscinas">Piscinas</option>
+                  <option value="Salón de Relajación">Salón de Relajación</option>
+                  <option value="Cafetería">Cafetería</option>
+                  <option value="Salón de Fiestas">Salón de Fiestas</option>
+                </optgroup>
+                <optgroup label="Instrucción y Escuela">
+                  <option value="Escuela de Navegación">Cursos Escuela de Navegación</option>
+                  <option value="Instructor de Natación">Instructor de Natación</option>
+                  <option value="Instructor de Buceo">Instructor de Buceo</option>
+                </optgroup>
+                <optgroup label="Servicios Adicionales">
+                  <option value="Limpieza de Nave">Limpieza de Nave</option>
+                  <option value="Otros">Otros (especificar en descripción)</option>
+                </optgroup>
+              </select>
+            </div>
+            {esServicioInstructor && (
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nombre del Instructor</label>
+                <Input
+                  type="text"
+                  placeholder="Ej. Carlos Mendoza"
+                  value={nombreInstructor}
+                  onChange={(e) => setNombreInstructor(e.target.value)}
+                  required
+                  className="rounded-lg bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                />
+              </div>
+            )}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                Monto (S/.) {categoriaServicio !== "Otros" && preciosServicios[categoriaServicio] !== undefined && (
+                  <span className="text-slate-300 font-normal">· Tarifa preestablecida</span>
+                )}
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder={cargandoPrecios ? "Cargando tarifa..." : "0.00"}
+                value={montoServicio}
+                onChange={(e) => setMontoServicio(e.target.value)}
+                required
+                readOnly={categoriaServicio !== "Otros" && preciosServicios[categoriaServicio] !== undefined}
+                className={`rounded-lg border-slate-200 dark:border-slate-800 ${
+                  categoriaServicio !== "Otros" && preciosServicios[categoriaServicio] !== undefined
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                    : "bg-slate-50 dark:bg-slate-950"
+                }`}
+              />
+              {categoriaServicio !== "Otros" && preciosServicios[categoriaServicio] === undefined && !cargandoPrecios && (
+                <p className="text-xs text-amber-500">No se encontró tarifa preestablecida; ingrese el monto manualmente.</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider"> Descripción (Opcional)</label>
+              <Input type="text" placeholder="Detalle interno..." value={descripcionServicio} onChange={(e) => setDescripcionServicio(e.target.value)} className="rounded-lg bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"/>
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="ghost" onClick={() => setServicioDialog(false)}>Cancelar</Button>
+              <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg" disabled={guardandoServicio}>
+                {guardandoServicio ? "Registrando..." : "Registrar Servicio"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Ver Observaciones */}
+      <Dialog open={motivoDialog} onOpenChange={setMotivoDialog}>
+        <DialogContent className="sm:max-w-md rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">Observación de Solicitud</DialogTitle>
+          </DialogHeader>
+          <div className="rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
             {motivoSeleccionado}
           </div>
         </DialogContent>

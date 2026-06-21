@@ -3,7 +3,7 @@ import DashboardSecretaria from "@/components/dashboard/DashboardSecretaria";
 import DashboardJefe       from "@/components/dashboard/DashboardJefe";
 import DashboardNaviero    from "@/components/dashboard/DashboardNaviero";
 import DashboardFinanzas   from "@/components/dashboard/DashboardFinanzas";
-
+import DashboardCobranza   from "@/pages/DashboardCobranza";
 export default function DashboardPage() {
   const { currentRole } = useRole();
 
@@ -16,7 +16,7 @@ export default function DashboardPage() {
   if (currentRole === "Naviero")    return <DashboardNaviero />;
   if (currentRole === "Finanzas")   return <DashboardFinanzas />;
   if (currentRole === "Secretaria") return <DashboardSecretaria />;
-
+  if (currentRole === "Cobranza") return <DashboardCobranza />;
   // Rol desconocido — no debería ocurrir, pero lo manejamos limpiamente
   return null;
 }
