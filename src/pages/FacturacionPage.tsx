@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Receipt, Calculator, DollarSign } from "lucide-react";
+import { Receipt, Calculator, DollarSign, AlertCircle, Clock, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAppData } from "@/contexts/AppDataContext";
 import { calcularMontoCuota } from "@/lib/businessRules";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,12 +29,37 @@ interface SocioConConsumos {
   consumos: ConsumoDetalle[];
 }
 
+// ── Tipos para los estados de cuenta reales del backend ─────────────────────
+interface EstadoCuenta {
+  id_socio: number;
+  socio: string;
+  total_deuda: number;
+  estado: string;
+}
+
+interface SocioMoroso {
+  id_factura: number;
+  id_socio: number;
+  nombres: string;
+  apellidos: string;
+  monto_total: number;
+  estado_pago: string;
+  dias_mora: number;
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 function EstadoBadge({ estado }: { estado: string }) {
-  return estado === "Al día"
-    ? <Badge className="bg-green-100 text-green-800 border-green-200">Al día</Badge>
-    : <Badge className="bg-red-100 text-red-800 border-red-200">Moroso</Badge>;
+  if (estado === "Al día") {
+    return <Badge className="bg-green-100 text-green-800 border-green-200">Al día</Badge>;
+  }
+  if (estado === "Pendiente") {
+    return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendiente</Badge>;
+  }
+  if (estado === "Fraccionado") {
+    return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Fraccionado</Badge>;
+  }
+  return <Badge className="bg-red-100 text-red-800 border-red-200">{estado}</Badge>;
 }
 
 function fmt(n: number) {
@@ -55,8 +80,33 @@ function fmt(n: number) {
 //     ahora vive en DashboardCobranza.
 //
 export default function FacturacionPage() {
-  const { state, dispatch } = useAppData();
   const { toast } = useToast();
+
+  // ── Estados de Cuenta (datos REALES del backend) ────────────────────────────
+  const [estadosCuenta, setEstadosCuenta] = useState<EstadoCuenta[]>([]);
+  const [cargandoCuentas, setCargandoCuentas] = useState(true);
+  const [errorCuentas, setErrorCuentas] = useState<string | null>(null);
+
+  const fetchEstadosCuenta = async () => {
+    setCargandoCuentas(true);
+    setErrorCuentas(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/estados-cuenta`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los estados de cuenta.`);
+      const data: EstadoCuenta[] = await res.json();
+      setEstadosCuenta(data);
+    } catch (err) {
+      setErrorCuentas(err instanceof Error ? err.message : "Error inesperado al cargar estados de cuenta.");
+    } finally {
+      setCargandoCuentas(false);
+    }
+  };
 
   // ── Consumos Pendientes (datos REALES del backend, registrados por Secretaría) ──
   const [consumosPendientes, setConsumosPendientes] = useState<SocioConConsumos[]>([]);
@@ -69,7 +119,7 @@ export default function FacturacionPage() {
     setErrorConsumos(null);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/facturacion/consumos-pendientes", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/consumos-pendientes`, {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -85,8 +135,35 @@ export default function FacturacionPage() {
     }
   };
 
+  const [morosos, setMorosos] = useState<SocioMoroso[]>([]);
+  const [cargandoMorosos, setCargandoMorosos] = useState(true);
+  const [errorMorosos, setErrorMorosos] = useState<string | null>(null);
+
+  const fetchMorosos = async () => {
+    setCargandoMorosos(true);
+    setErrorMorosos(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/morosos`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los socios morosos.`);
+      const data: SocioMoroso[] = await res.json();
+      setMorosos(data);
+    } catch (err) {
+      setErrorMorosos(err instanceof Error ? err.message : "Error inesperado al cargar morosos.");
+    } finally {
+      setCargandoMorosos(false);
+    }
+  };
+
   useEffect(() => {
+    fetchEstadosCuenta();
     fetchConsumosPendientes();
+    fetchMorosos();
   }, []);
 
   const totalGeneralPendiente = consumosPendientes.reduce((acc, s) => acc + s.total_consumos, 0);
@@ -95,28 +172,54 @@ export default function FacturacionPage() {
   const [fSocio, setFSocio] = useState("");
   const [fCuotas, setFCuotas] = useState("3");
 
-  const cuentaFraccion = state.cuentas.find((c) => c.socioId === fSocio);
-  const montoCuota = cuentaFraccion
-    ? calcularMontoCuota(cuentaFraccion.total, Number(fCuotas))
+  const facturaSeleccionada = morosos.find((m) => String(m.id_factura) === fSocio);
+  const montoCuota = facturaSeleccionada
+    ? calcularMontoCuota(facturaSeleccionada.monto_total, Number(fCuotas))
     : 0;
-
-  const sociosMorosos = state.cuentas.filter((c) => c.estado === "Moroso");
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  function handleFraccion(e: React.FormEvent) {
+  async function handleFraccion(e: React.FormEvent) {
     e.preventDefault();
-    if (!fSocio || !cuentaFraccion) return;
-    dispatch({ type: "FRACCIONAR_DEUDA", payload: { socioId: fSocio, cuotas: Number(fCuotas) } });
-    toast({ title: "Deuda fraccionada", description: `${fCuotas} cuotas de ${fmt(montoCuota)} para ${cuentaFraccion.nombre}.` });
-    setFSocio(""); setFCuotas("3");
+    if (!fSocio || !facturaSeleccionada) return;
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/fraccionar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          id_factura: Number(fSocio),
+          cuotas: Number(fCuotas),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.mensaje || "No se pudo realizar el fraccionamiento.");
+
+      toast({
+        title: "Deuda fraccionada",
+        description: `${fCuotas} cuotas de ${fmt(montoCuota)} para ${facturaSeleccionada.nombres} ${facturaSeleccionada.apellidos}.`,
+      });
+      setFSocio("");
+      setFCuotas("3");
+      await fetchMorosos();
+      await fetchEstadosCuenta();
+    } catch (err) {
+      toast({
+        title: "Error al fraccionar deuda",
+        description: err instanceof Error ? err.message : "Error inesperado.",
+        variant: "destructive",
+      });
+    }
   }
 
   async function handleGenerarFacturacion() {
     setGenerandoFacturacion(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/facturacion/generar", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/generar`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -152,7 +255,7 @@ export default function FacturacionPage() {
       </div>
 
       <Tabs defaultValue="cuentas" className="space-y-4">
-        <TabsList className="grid grid-cols-3 w-full max-w-lg">
+        <TabsList className="grid grid-cols-3 w-full">
           <TabsTrigger value="cuentas" className="gap-2">
             <Receipt className="h-4 w-4" /> Estados de Cuenta
           </TabsTrigger>
@@ -174,47 +277,49 @@ export default function FacturacionPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Socio</TableHead>
-                      <TableHead className="text-right">Membresía</TableHead>
-                      <TableHead className="text-right">Consumos</TableHead>
-                      <TableHead className="text-right">Intereses</TableHead>
-                      <TableHead className="text-right">Total Deuda</TableHead>
-                      <TableHead>Estado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {state.cuentas.map((c) => {
-                      const consumos = c.cafeteria + c.limpieza + c.cabotaje;
-                      return (
-                        <TableRow key={c.socioId}>
-                          <TableCell className="font-medium">{c.nombre}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">{fmt(c.membresia)}</TableCell>
-                          <TableCell className="text-right text-muted-foreground">{fmt(consumos)}</TableCell>
-                          <TableCell className="text-right">
-                            {c.intereses > 0
-                              ? <span className="text-red-600 font-medium">{fmt(c.intereses)}</span>
-                              : <span className="text-muted-foreground">{fmt(0)}</span>}
-                          </TableCell>
-                          <TableCell className="text-right font-bold">{fmt(c.total)}</TableCell>
+              {cargandoCuentas ? (
+                <div className="space-y-3 py-2">
+                  {/* Cabecera simulada */}
+                  <div className="flex gap-4 px-1 pb-1 border-b border-border">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-24 ml-auto" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  {/* 5 filas simuladas */}
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 px-1">
+                      <Skeleton className="h-4 w-48" />
+                      <Skeleton className="h-4 w-20 ml-auto" />
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : errorCuentas ? (
+                <p className="text-center text-destructive py-10 text-sm">{errorCuentas}</p>
+              ) : estadosCuenta.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10 text-sm">No hay estados de cuenta disponibles.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Socio</TableHead>
+                        <TableHead className="text-right">Total Deuda</TableHead>
+                        <TableHead>Estado</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {estadosCuenta.map((c) => (
+                        <TableRow key={c.id_socio}>
+                          <TableCell className="font-medium">{c.socio}</TableCell>
+                          <TableCell className="text-right font-bold">{fmt(c.total_deuda)}</TableCell>
                           <TableCell><EstadoBadge estado={c.estado} /></TableCell>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                Esta vista consolida membresía + consumos registrados por Secretaría + intereses
-                aplicados por Cobranza, para fines de facturación mensual.
-              </p>
-              <p className="text-xs text-amber-600 mt-3">
-                ⚠ Esta vista usa datos de ejemplo (membresía y rada simuladas). Los consumos
-                reales registrados por Secretaría están en la pestaña "Consumos Pendientes".
-              </p>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -243,7 +348,34 @@ export default function FacturacionPage() {
             </CardHeader>
             <CardContent>
               {cargandoConsumos ? (
-                <p className="text-center text-muted-foreground py-10 text-sm">Cargando consumos pendientes...</p>
+                <div className="space-y-4 py-2">
+                  {/* Banner de total simulado */}
+                  <Skeleton className="h-9 w-full rounded-lg" />
+                  {/* 2 tarjetas de socio simuladas */}
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="rounded-lg border border-border overflow-hidden">
+                      {/* Cabecera de la tarjeta */}
+                      <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                        <Skeleton className="h-5 w-20" />
+                      </div>
+                      {/* 3 filas de consumo simuladas */}
+                      <div className="divide-y divide-border">
+                        {Array.from({ length: 3 }).map((_, j) => (
+                          <div key={j} className="flex items-center gap-4 px-4 py-3">
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-36" />
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-4 w-16 ml-auto" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : errorConsumos ? (
                 <p className="text-center text-destructive py-10 text-sm">{errorConsumos}</p>
               ) : consumosPendientes.length === 0 ? (
@@ -252,13 +384,13 @@ export default function FacturacionPage() {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm">
-                    <span className="text-blue-600 font-medium">Total pendiente de todos los socios: </span>
-                    <span className="font-bold text-blue-950">{fmt(totalGeneralPendiente)}</span>
+                  <div className="rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 p-3 text-sm">
+                    <span className="text-blue-600 dark:text-blue-400 font-medium">Total pendiente de todos los socios: </span>
+                    <span className="font-bold text-blue-950 dark:text-blue-100">{fmt(totalGeneralPendiente)}</span>
                   </div>
                   {consumosPendientes.map((socio) => (
-                    <div key={socio.id_socio} className="rounded-lg border border-slate-200">
-                      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                    <div key={socio.id_socio} className="rounded-lg border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                         <div>
                           <p className="font-semibold text-sm">{socio.nombres} {socio.apellidos}</p>
                           <p className="text-xs text-muted-foreground">
@@ -299,68 +431,139 @@ export default function FacturacionPage() {
 
         {/* ── PESTAÑA 3: FRACCIONAMIENTO DE DEUDA ──────────────────────── */}
         <TabsContent value="fraccionamiento">
-          <Card className="max-w-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Calculator className="h-4 w-4 text-muted-foreground" />
-                Aprobar Fraccionamiento de Deuda
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleFraccion} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Socio Moroso</label>
-                  <Select value={fSocio} onValueChange={setFSocio}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar socio moroso" /></SelectTrigger>
-                    <SelectContent>
-                      {sociosMorosos.map((c) => (
-                        <SelectItem key={c.socioId} value={c.socioId}>
-                          {c.nombre} — {fmt(c.total)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {sociosMorosos.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No hay socios morosos actualmente.</p>
-                  )}
-                </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Número de Cuotas</label>
-                  <Select value={fCuotas} onValueChange={setFCuotas}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {[2, 3, 4, 5, 6].map((n) => (
-                        <SelectItem key={n} value={String(n)}>{n} cuotas</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">Máximo permitido: 6 cuotas mensuales.</p>
-                </div>
+            {/* ── COLUMNA IZQUIERDA: Formulario ── */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calculator className="h-4 w-4 text-muted-foreground" />
+                  Aprobar Fraccionamiento de Deuda
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Selecciona un socio moroso y el número de cuotas para generar el plan de pago.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleFraccion} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Socio Moroso</label>
+                    {cargandoMorosos ? (
+                      <p className="text-xs text-muted-foreground">Cargando socios morosos...</p>
+                    ) : errorMorosos ? (
+                      <p className="text-xs text-destructive">{errorMorosos}</p>
+                    ) : (
+                      <Select value={fSocio} onValueChange={setFSocio}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar socio moroso" /></SelectTrigger>
+                        <SelectContent>
+                          {morosos.map((m) => (
+                            <SelectItem key={m.id_factura} value={String(m.id_factura)}>
+                              {m.nombres} {m.apellidos} — {fmt(m.monto_total)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {!cargandoMorosos && !errorMorosos && morosos.length === 0 && (
+                      <p className="text-xs text-muted-foreground">No hay socios morosos actualmente.</p>
+                    )}
+                  </div>
 
-                {/* Vista previa del fraccionamiento */}
-                {fSocio && cuentaFraccion && (
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 space-y-1">
-                    <p className="text-xs text-blue-600 font-medium">Vista previa</p>
-                    <p className="text-sm text-blue-800">
-                      Deuda total: <span className="font-bold">{fmt(cuentaFraccion.total)}</span>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Número de Cuotas</label>
+                    <Select value={fCuotas} onValueChange={setFCuotas}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[2, 3, 4, 5, 6].map((n) => (
+                          <SelectItem key={n} value={String(n)}>{n} cuotas</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Máximo permitido: 6 cuotas mensuales.</p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full gap-2"
+                    disabled={!fSocio || morosos.length === 0}
+                  >
+                    <Calculator className="h-4 w-4" /> Confirmar Fraccionamiento
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* ── COLUMNA DERECHA: Tarjeta informativa dinámica ── */}
+            {facturaSeleccionada ? (
+              <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                    <CreditCard className="h-4 w-4" />
+                    Detalle del Socio Seleccionado
+                  </CardTitle>
+                  <p className="text-sm font-semibold text-foreground">
+                    {facturaSeleccionada.nombres} {facturaSeleccionada.apellidos}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Métricas clave */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg bg-background border border-border p-3 space-y-0.5">
+                      <p className="text-xs text-muted-foreground">Monto Total Adeudado</p>
+                      <p className="text-lg font-bold text-foreground">{fmt(facturaSeleccionada.monto_total)}</p>
+                    </div>
+                    <div className="rounded-lg bg-background border border-border p-3 space-y-0.5">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> Días en Mora
+                      </p>
+                      <p className={`text-lg font-bold ${
+                        facturaSeleccionada.dias_mora > 30
+                          ? "text-red-600 dark:text-red-400"
+                          : "text-amber-600 dark:text-amber-400"
+                      }`}>
+                        {facturaSeleccionada.dias_mora} días
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Estado de pago */}
+                  <div className="rounded-lg bg-background border border-border p-3 flex items-center gap-3">
+                    <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Estado de Pago</p>
+                      <p className="text-sm font-semibold text-foreground">{facturaSeleccionada.estado_pago}</p>
+                    </div>
+                  </div>
+
+                  {/* Separador y cálculo de cuotas */}
+                  <div className="border-t border-blue-200 dark:border-blue-800 pt-3 space-y-2">
+                    <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                      Plan de Pago Calculado
                     </p>
-                    <p className="text-lg font-bold text-blue-950">
-                      {fCuotas} cuotas de {fmt(montoCuota)}
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {fCuotas} cuota{Number(fCuotas) > 1 ? "s" : ""} de
+                      </p>
+                      <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                        {fmt(montoCuota)}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Total a fraccionar: <span className="font-semibold text-foreground">{fmt(facturaSeleccionada.monto_total)}</span>
                     </p>
                   </div>
-                )}
+                </CardContent>
+              </Card>
+            ) : (
+              /* Placeholder cuando no hay socio seleccionado */
+              <div className="rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-3 p-10 text-center text-muted-foreground min-h-[280px]">
+                <CreditCard className="h-10 w-10 opacity-20" />
+                <p className="text-sm font-medium">Selecciona un socio moroso</p>
+                <p className="text-xs opacity-70">El detalle de la deuda y el plan de cuotas aparecerá aquí</p>
+              </div>
+            )}
 
-                <Button
-                  type="submit"
-                  className="w-full gap-2"
-                  disabled={!fSocio || sociosMorosos.length === 0}
-                >
-                  <Calculator className="h-4 w-4" /> Confirmar Fraccionamiento
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
