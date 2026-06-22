@@ -105,7 +105,7 @@ export default function LoginPage() {
         className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#cc9a1b] bg-[#cc9a1b]/10 hover:bg-[#cc9a1b]/20 border border-[#cc9a1b]/30 rounded-xl backdrop-blur-md transition-all active:scale-95 group"
       >
         <ArrowLeft className="h-4 w-4 transform group-hover:-translate-x-1 transition-transform text-[#cc9a1b]" />
-        Volver al Inicio
+        Volver al Inijkjhhlhlhcio
       </button>
 
       {/* 3. CUADRO DE LOGIN */}
