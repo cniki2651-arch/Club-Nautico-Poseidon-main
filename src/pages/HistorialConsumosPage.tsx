@@ -43,7 +43,10 @@ export default function HistorialConsumosPage() {
     try {
       const token = localStorage.getItem("accessToken");
       const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
-      const res = await fetch(`${apiUrl}/api/facturacion/consumos-pendientes`, {
+      
+      //  AQUÍ ESTÁ EL CAMBIO: Apuntamos al historial general, no a los pendientes.
+      // (Verifica que la ruta en tu backend sea exactamente esta)
+      const res = await fetch(`${apiUrl}/api/facturacion/consumos`, {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -90,7 +93,7 @@ export default function HistorialConsumosPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Historial de Consumo</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Visualización y seguimiento de todos los consumos y servicios adicionales de socios pendientes de facturación.
+            Visualización y seguimiento general de todos los consumos y servicios realizados por los socios.
           </p>
         </div>
         <Button variant="outline" onClick={fetchConsumos} disabled={cargandoConsumos} className="gap-2">
@@ -104,7 +107,8 @@ export default function HistorialConsumosPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Total Pendiente de Facturar (Consumos)</p>
+                {/* CAMBIO DE TEXTO PARA REFLEJAR HISTORIAL */}
+                <p className="text-sm text-muted-foreground">Monto Total Histórico</p>
                 <p className="text-2xl font-bold text-foreground">
                   {cargandoConsumos ? "Calculando..." : `S/ ${totalConsumosMonto.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </p>
@@ -120,7 +124,8 @@ export default function HistorialConsumosPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Servicios Pendientes</p>
+                {/*  CAMBIO DE TEXTO PARA REFLEJAR HISTORIAL */}
+                <p className="text-sm text-muted-foreground">Total de Consumos Registrados</p>
                 <p className="text-2xl font-bold text-foreground">
                   {cargandoConsumos ? "..." : consumosFiltrados.length}
                 </p>
@@ -162,13 +167,13 @@ export default function HistorialConsumosPage() {
               {cargandoConsumos ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-slate-400 dark:text-slate-500 py-10 text-sm">
-                    Cargando historial de consumos...
+                    Cargando historial completo de consumos...
                   </TableCell>
                 </TableRow>
               ) : consumosFiltrados.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-slate-400 py-10 text-sm">
-                    No se han registrado consumos pendientes en este periodo.
+                    No se han registrado consumos en la base de datos.
                   </TableCell>
                 </TableRow>
               ) : (
