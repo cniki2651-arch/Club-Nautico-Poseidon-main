@@ -188,7 +188,7 @@ export default function LoginPage() {
                   "Ingresar al Panel"
                 )}
               </button>
-            </form>
+             </form>
             
             <p className="text-center text-[10px] text-slate-400 mt-8 leading-tight">
               Acceso restringido a personal autorizado.
@@ -196,6 +196,20 @@ export default function LoginPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* EFECTO DE OLAS ANIMADAS EN EL FONDO */}
+      <div className="absolute bottom-0 left-0 right-0 w-full overflow-hidden leading-[0] z-0 opacity-20 pointer-events-none">
+        <motion.svg 
+          animate={{ x: [-100, 0, -100] }}
+          transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
+          viewBox="0 0 1200 120" 
+          preserveAspectRatio="none" 
+          className="relative block w-[200%] h-[60px] text-sky-400"
+        >
+          <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V0C26.9,4.75,55.05,8.12,83,11.23,158,19.62,233.17,23.3,321.39,56.44Z" fill="currentColor"></path>
+        </motion.svg>
+      </div>
+
     </div>
   );
 }
