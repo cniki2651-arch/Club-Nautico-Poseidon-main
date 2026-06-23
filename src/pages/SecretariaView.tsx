@@ -26,6 +26,34 @@ interface SolicitudAPI {
   observacion: string | null;
 }
 
+interface ConsumoDetalle {
+  id_consumo: number;
+  servicio: string;
+  monto: number;
+  descripcion: string;
+  fecha_consumo: string;
+}
+
+interface SocioConsumosAPI {
+  id_socio: number;
+  dni: string;
+  tipo_doc_siglas: string;
+  nombres: string;
+  apellidos: string;
+  total_consumos: number;
+  consumos: ConsumoDetalle[];
+}
+
+interface ConsumoPlano {
+  id_consumo: number;
+  dni: string;
+  tipo_doc_siglas: string;
+  nombre_completo: string;
+  fecha: string;
+  servicio: string;
+  monto: number;
+}
+
 export default function SecretariaView() {
   //  ESTADOS DE FILTRADO DINÁMICO 
   const [busqueda, setBusqueda] = useState("");
@@ -76,7 +104,7 @@ export default function SecretariaView() {
     setCargandoPrecios(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/consumos/precios", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/consumos/precios`, {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -107,7 +135,7 @@ export default function SecretariaView() {
     try {
       const token = localStorage.getItem("accessToken");
       const res = await fetch(
-        `https://api-poseidon.onrender.com/api/socios/buscar?tipo_doc=${tipoDoc}&numero=${numero}`,
+        `${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/socios/buscar?tipo_doc=${tipoDoc}&numero=${numero}`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -132,7 +160,7 @@ export default function SecretariaView() {
   const fetchMetricas = async () => {
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/dashboard/secretaria", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/dashboard/secretaria`, {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -154,7 +182,7 @@ export default function SecretariaView() {
     setErrorLista(null);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/solicitudes", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/solicitudes`, {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -163,12 +191,14 @@ export default function SecretariaView() {
       if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar las solicitudes.`);
       const data: SolicitudAPI[] = await res.json();
       setSolicitudes(data);
-    } catch (err) {
+    } catch (err: unknown) {
       setErrorLista(err instanceof Error ? err.message : "Error inesperado en la red.");
     } finally {
       setCargandoLista(false);
     }
   };
+
+
 
   useEffect(() => {
     fetchMetricas();
@@ -216,7 +246,7 @@ export default function SecretariaView() {
         ? `Instructor: ${nombreInstructor}${descripcionServicio ? " — " + descripcionServicio : ""}`
         : descripcionServicio || `Cargo por servicio de ${categoriaServicio}`;
 
-      const res = await fetch("https://api-poseidon.onrender.com/api/consumos", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/consumos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -245,7 +275,7 @@ export default function SecretariaView() {
       setMontoServicio("");
       setDescripcionServicio("");
       setNombreInstructor("");
-    } catch (err) {
+    } catch (err: unknown) {
       toast.error("Error al registrar el servicio", {
         description: err instanceof Error ? err.message : "Verifique que el DNI pertenezca a un socio registrado o revise la conexión.",
       });
@@ -536,6 +566,8 @@ export default function SecretariaView() {
           </Table>
         </CardContent>
       </Card>
+
+
 
       {/* Modal Registrar Servicio (Integrado a API) */}
       <Dialog open={servicioDialog} onOpenChange={setServicioDialog}>

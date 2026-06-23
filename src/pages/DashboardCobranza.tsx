@@ -1,85 +1,144 @@
-import { useState } from "react";
-import { AlertTriangle, Ban, ShieldAlert, TrendingUp, CreditCard, Calculator } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AlertTriangle, Ban, ShieldAlert, TrendingUp, CreditCard, Calculator, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAppData } from "@/contexts/AppDataContext";
 import { useToast } from "@/hooks/use-toast";
+import {Label} from "@radix-ui/react-label";
 
 // ===================================================================
-// Este panel cubre la ÚNICA responsabilidad de Cobranzas según el
-// caso de uso oficial: "Gestionar Morosidad (Cálculo SBS)".
-// Incluye también "Registrar Pago", ya que recaudar y marcar facturas
-// como pagadas es quien hace seguimiento a la morosidad (Cobranzas),
-// no quien factura (Finanzas).
-//
-// El bloqueo de zarpes a socios morosos YA es automático a nivel de
-// negocio (ver zarpeEsPermitido en businessRules.ts, que revisa
-// socio.estado === "Moroso"). El botón "Zarpes Bloqueados" aquí es
-// informativo: confirma visualmente que la penalidad ya está vigente,
-// no dispara una acción adicional.
+// Panel de Cobranzas conectado a la base de datos real (PostgreSQL).
+// Consume:
+// - GET /api/facturacion/morosos (Cálculo SBS dinámico de intereses)
+// - POST /api/facturacion/pagar (Registrar pago con intereses SBS)
 // ===================================================================
 
 function fmt(n: number) {
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export default function DashboardCobranza() {
-  const { state, dispatch } = useAppData();
-  const { toast } = useToast();
+interface FacturaMorosa {
+  id_factura: number;
+  id_socio: number;
+  concepto: string;
+  monto_base: number;
+  monto_total: number;
+  fecha_emision: string;
+  fecha_vencimiento: string;
+  estado_pago: string;
+  dni: string;
+  nombres: string;
+  apellidos: string;
+  tipo_doc_siglas: string;
+  interes_sbs: number;
+  dias_mora: number;
+}
 
-  // ── Tasa SBS ──────────────────────────────────────────────────────────────
-  const [tasaInput, setTasaInput] = useState(String(state.tasaSBS));
+export default function DashboardCobranza() {
+  const { toast } = useToast();
+  const [morososList, setMorososList] = useState<FacturaMorosa[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sbsRate, setSbsRate] = useState("1.0");
 
   // ── Registrar Pago ───────────────────────────────────────────────────────
-  const [pSocio, setPSocio] = useState("");
-  const [pMonto, setPMonto] = useState("");
+  const [pFacturaId, setPFacturaId] = useState("");
 
-  const morosos = state.cuentas.filter((c) => c.estado === "Moroso");
-  const totalAdeudado = morosos.reduce((acc, c) => acc + c.total, 0);
+  const totalAdeudado = morososList.reduce((acc, f) => acc + Number(f.monto_total), 0);
+  const uniqueSociosInMora = new Set(morososList.map((f) => f.id_socio)).size;
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  function handleTasaUpdate() {
-    const tasa = parseFloat(tasaInput);
-    if (isNaN(tasa) || tasa <= 0) {
-      toast({ title: "Tasa inválida", description: "Ingresa un valor mayor a 0.", variant: "destructive" });
-      return;
+  const fetchMorosos = async (rate?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
+      const targetRate = typeof rate === "string" ? rate : sbsRate;
+      const res = await fetch(`${apiUrl}/api/facturacion/morosos?tasa_mensual=${targetRate}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: no se pudo cargar los socios morosos.`);
+      }
+      const data = await res.json();
+      setMorososList(data);
+    } catch (err) {
+      console.error(err);
+      setError(err instanceof Error ? err.message : "Error al cargar morosos.");
+    } finally {
+      setLoading(false);
     }
-    dispatch({ type: "ACTUALIZAR_TASA_SBS", payload: { tasa } });
-    toast({ title: "Tasa SBS actualizada", description: `Nueva tasa: ${tasa}% mensual.` });
-  }
+  };
 
-  function handleCalcularIntereses() {
-    if (morosos.length === 0) {
-      toast({ title: "Sin morosos", description: "No hay socios morosos para calcular intereses." });
-      return;
-    }
-    dispatch({ type: "CALCULAR_INTERESES" });
-    toast({ title: "Intereses calculados", description: `Se aplicó ${state.tasaSBS}% a ${morosos.length} socio(s) moroso(s).` });
-  }
+  useEffect(() => {
+    fetchMorosos();
+  }, []);
 
-  function handlePago(e: React.FormEvent) {
+  const handlePago = async (e: React.FormEvent) => {
     e.preventDefault();
-    const monto = parseFloat(pMonto);
-    if (!pSocio || isNaN(monto) || monto <= 0) return;
-    dispatch({ type: "REGISTRAR_PAGO", payload: { socioId: pSocio, monto } });
-    const socio = state.socios.find((s) => s.id === pSocio);
-    toast({ title: "Pago registrado", description: `${fmt(monto)} abonado a la cuenta de ${socio?.nombre}.` });
-    setPSocio(""); setPMonto("");
-  }
+    if (!pFacturaId) return;
+
+    setPaying(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
+      const res = await fetch(`${apiUrl}/api/facturacion/pagar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ 
+          id_factura: Number(pFacturaId),
+          tasa_mensual: Number(sbsRate)
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.mensaje || "Error al registrar el pago.");
+      }
+
+      const result = await res.json();
+      toast({
+        title: "Pago registrado exitosamente",
+        description: `Monto Base: S/ ${result.monto_base.toFixed(2)} | Interés SBS (${result.dias_mora} días): S/ ${result.interes_sbs.toFixed(2)} | Total Cobrado: S/ ${result.total_pagado.toFixed(2)}.`,
+      });
+
+      setPFacturaId("");
+      fetchMorosos(sbsRate); // Refrescar los morosos con la tasa actual
+    } catch (err) {
+      toast({
+        title: "Error al registrar pago",
+        description: err instanceof Error ? err.message : "Error al registrar pago.",
+        variant: "destructive",
+      });
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const selectedInvoice = morososList.find((f) => String(f.id_factura) === pFacturaId);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Panel de Cobranzas</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Gestión de morosidad, cálculo de intereses SBS y recaudación de pagos.
-        </p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Panel de Cobranzas</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gestión de morosidad, cálculo automático de intereses SBS y recaudación de pagos en base de datos.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => fetchMorosos()} disabled={loading} className="gap-2">
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          Actualizar Datos
+        </Button>
       </div>
 
       {/* KPIs */}
@@ -88,8 +147,10 @@ export default function DashboardCobranza() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Total Adeudado</p>
-                <p className="text-2xl font-bold text-foreground">{fmt(totalAdeudado)}</p>
+                <p className="text-sm text-muted-foreground">Total Moroso (Con Intereses)</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {loading ? "Calculando..." : fmt(totalAdeudado)}
+                </p>
               </div>
               <div className="p-2.5 rounded-lg bg-destructive/10">
                 <TrendingUp className="h-5 w-5 text-destructive" />
@@ -102,11 +163,13 @@ export default function DashboardCobranza() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Socios en Mora</p>
-                <p className="text-2xl font-bold text-foreground">{morosos.length}</p>
+                <p className="text-sm text-muted-foreground">Socios con Deuda</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {loading ? "..." : uniqueSociosInMora}
+                </p>
               </div>
-              <div className="p-2.5 rounded-lg bg-warning/10">
-                <AlertTriangle className="h-5 w-5 text-warning" />
+              <div className="p-2.5 rounded-lg bg-yellow-500/10">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
               </div>
             </div>
           </CardContent>
@@ -116,166 +179,181 @@ export default function DashboardCobranza() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Tasa SBS Vigente</p>
-                <p className="text-2xl font-bold text-foreground">{state.tasaSBS}%</p>
+                <p className="text-sm text-muted-foreground">Tasa SBS Aplicada</p>
+                <p className="text-2xl font-bold text-foreground">{sbsRate}% mensual</p>
               </div>
-              <div className="p-2.5 rounded-lg bg-accent">
-                <Calculator className="h-5 w-5 text-secondary" />
+              <div className="p-2.5 rounded-lg bg-primary/10">
+                <Calculator className="h-5 w-5 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Configuración de Tasa SBS + Calcular Intereses */}
-      <Card>
-        <CardContent className="pt-5">
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div className="space-y-1.5 flex-1">
-              <Label className="flex items-center gap-1.5">
-                <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-                Tasa SBS Mensual (%)
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={tasaInput}
-                  onChange={(e) => setTasaInput(e.target.value)}
-                  className="max-w-[140px]"
-                />
-                <Button variant="outline" onClick={handleTasaUpdate}>Actualizar</Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Verificar tasa vigente en{" "}
-                <a
-                  href="https://www.sbs.gob.pe/estadisticas/tasa-de-interes/tasa-de-interes-de-indole-legal"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  sbs.gob.pe
-                </a>{" "}
-                antes de actualizar.
-              </p>
-            </div>
-            <Button
-              onClick={handleCalcularIntereses}
-              className="gap-2 bg-red-600 hover:bg-red-700 text-white"
-              disabled={morosos.length === 0}
-            >
-              <Calculator className="h-4 w-4" />
-              Calcular Intereses del Mes
-              {morosos.length > 0 && (
-                <Badge className="ml-1 bg-red-800 text-white">{morosos.length}</Badge>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {error && (
+        <Card className="border-destructive bg-destructive/5">
+          <CardContent className="p-4 text-sm text-destructive">
+            {error}
+          </CardContent>
+        </Card>
+      )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
         {/* Tabla de socios morosos */}
         <Card className="md:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-              Socios con Pagos Vencidos
+              Facturas Vencidas con Cálculo de Intereses SBS
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead className="text-right">Membresía</TableHead>
-                  <TableHead className="text-right">Intereses</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {morosos.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center items-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
-                      No hay socios morosos.
-                    </TableCell>
+                    <TableHead>Socio</TableHead>
+                    <TableHead>Concepto</TableHead>
+                    <TableHead className="text-right">Base</TableHead>
+                    <TableHead className="text-right">Intereses SBS</TableHead>
+                    <TableHead className="text-right">Total Acumulado</TableHead>
+                    <TableHead className="text-right">Mora</TableHead>
                   </TableRow>
-                ) : (
-                  morosos.map((c) => (
-                    <TableRow key={c.socioId}>
-                      <TableCell className="font-medium">{c.nombre}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">{fmt(c.membresia)}</TableCell>
-                      <TableCell className="text-right text-red-600 font-medium">{fmt(c.intereses)}</TableCell>
-                      <TableCell className="text-right font-bold">{fmt(c.total)}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          <Ban className="h-3 w-3 mr-1" /> Zarpes Bloqueados
-                        </Badge>
+                </TableHeader>
+                <TableBody>
+                  {morososList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                        No se encontraron deudas vencidas en la base de datos.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            <p className="text-xs text-muted-foreground mt-3">
-              El bloqueo de zarpes para socios morosos se aplica automáticamente al validar
-              cada solicitud de zarpe; esta etiqueta refleja ese estado, no requiere acción manual.
+                  ) : (
+                    morososList.map((f) => (
+                      <TableRow key={f.id_factura}>
+                        <TableCell className="font-medium">
+                          <span className="block text-sm font-semibold">{f.nombres} {f.apellidos}</span>
+                          <span className="block text-[10px] text-muted-foreground">{f.tipo_doc_siglas}: {f.dni}</span>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                          {f.concepto}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">{fmt(f.monto_base)}</TableCell>
+                        <TableCell className="text-right text-red-600 font-semibold">{fmt(f.interes_sbs)}</TableCell>
+                        <TableCell className="text-right font-bold">{fmt(f.monto_total)}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge className="bg-red-600 text-white select-none whitespace-nowrap">
+                            <Ban className="h-3 w-3 mr-1" /> {f.dias_mora} días
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            )}
+            <p className="text-[11px] text-muted-foreground mt-3 italic">
+              * Nota: El bloqueo de zarpes de naves a socios morosos se realiza en tiempo real a nivel del Backend API al intentar solicitar o autorizar salidas.
             </p>
           </CardContent>
         </Card>
 
-        {/* Registrar Pago */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              Registrar Pago
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handlePago} className="space-y-4">
+        {/* Columna derecha */}
+        <div className="space-y-6">
+          {/* Configuración de Tasa SBS */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-muted-foreground" />
+                Configurar Tasa SBS
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
               <div className="space-y-1.5">
-                <Label>Socio</Label>
-                <Select value={pSocio} onValueChange={setPSocio}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar socio" /></SelectTrigger>
-                  <SelectContent>
-                    {state.socios.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {pSocio && (
-                <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm">
-                  <p className="text-muted-foreground text-xs mb-1">Deuda actual</p>
-                  <p className="font-bold text-slate-900">
-                    {fmt(state.cuentas.find((c) => c.socioId === pSocio)?.total ?? 0)}
-                  </p>
+                <Label htmlFor="tasa-sbs" className="text-xs font-semibold text-slate-700">Tasa Mensual (%)</Label>
+                <div className="flex gap-2">
+                  <input
+                    id="tasa-sbs"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={sbsRate}
+                    onChange={(e) => setSbsRate(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <Button 
+                    type="button"
+                    onClick={() => fetchMorosos(sbsRate)} 
+                    disabled={loading}
+                    size="sm"
+                    className="bg-primary text-primary-foreground select-none"
+                  >
+                    Aplicar
+                  </Button>
                 </div>
-              )}
-
-              <div className="space-y-1.5">
-                <Label>Monto a Pagar (S/)</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  min="0.01"
-                  step="0.01"
-                  value={pMonto}
-                  onChange={(e) => setPMonto(e.target.value)}
-                  required
-                />
               </div>
+              <p className="text-[11px] text-muted-foreground leading-normal">
+                Configure la tasa de interés mensual utilizada para calcular la morosidad y al procesar los cobros.
+              </p>
+            </CardContent>
+          </Card>
 
-              <Button type="submit" className="w-full gap-2" disabled={!pSocio || !pMonto}>
-                <CreditCard className="h-4 w-4" /> Registrar Pago
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+          {/* Registrar Pago */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                Cobrar Factura Vencida
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePago} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-700">Socio y Recibo</Label>
+                  <Select value={pFacturaId} onValueChange={setPFacturaId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={loading ? "Cargando morosos..." : "Seleccionar recibo"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {morososList.map((f) => (
+                        <SelectItem key={f.id_factura} value={String(f.id_factura)}>
+                          {f.nombres} {f.apellidos} - Factura #{f.id_factura} (S/ {f.monto_total.toFixed(2)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {pFacturaId && selectedInvoice && (
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs space-y-1">
+                    <p className="text-muted-foreground">Deuda Principal: <span className="font-semibold text-slate-800">{fmt(selectedInvoice.monto_base)}</span></p>
+                    <p className="text-red-600 font-semibold">Interés SBS Mora: {fmt(selectedInvoice.interes_sbs)} ({selectedInvoice.dias_mora} días)</p>
+                    <div className="pt-2 mt-1 border-t border-slate-200 font-bold text-sm text-slate-900 flex justify-between">
+                      <span>Total a Recaudar:</span>
+                      <span>{fmt(selectedInvoice.monto_total)}</span>
+                    </div>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-colors" disabled={!pFacturaId || paying}>
+                  {paying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Procesando Cobro...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="h-4 w-4" /> Registrar Recaudación
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
