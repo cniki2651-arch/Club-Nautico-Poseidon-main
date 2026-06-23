@@ -45,8 +45,8 @@ const menuByRole: Record<Role, { title: string; url: string; icon: React.Element
     
   ],
   
+  
   Cobranza: [
-    itemInicio,
     { title: "Gestión de Morosidad", url: "/dashboard/morosidad", icon: ShieldAlert },
   ],
 };
