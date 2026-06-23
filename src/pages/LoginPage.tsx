@@ -100,13 +100,18 @@ export default function LoginPage() {
       <div className="absolute inset-0 bg-blue-950/60 backdrop-blur-[2px]" />
 
       {/* BOTÓN VOLVER  */}
-      <button
+      <motion.button
         onClick={() => navigate("/")}
-        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 text-sm font-semibold text-[#cc9a1b] bg-[#cc9a1b]/10 hover:bg-[#cc9a1b]/20 border border-[#cc9a1b]/30 rounded-xl backdrop-blur-md transition-all active:scale-95 group"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        className="absolute top-6 left-6 z-20 flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-100 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-sky-400/40 rounded-xl backdrop-blur-md transition-all group shadow-lg hover:shadow-sky-500/10"
       >
-        <ArrowLeft className="h-4 w-4 transform group-hover:-translate-x-1 transition-transform text-[#cc9a1b]" />
-        Volver al Inijkjhhlhlhcio
-      </button>
+        <ArrowLeft className="h-4 w-4 transform group-hover:-translate-x-1.5 transition-transform duration-300 text-sky-400 group-hover:text-sky-300" />
+        <span>Volver al Inicio</span>
+      </motion.button>
 
       {/* 3. CUADRO DE LOGIN */}
       <motion.div 
