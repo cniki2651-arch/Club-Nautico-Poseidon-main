@@ -293,8 +293,8 @@ const LandingPage = () => {
     {/* CONTACTO — Fondo Azul Marino */}
       <section id="contacto" className="py-20 px-4 bg-blue-900">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12">
-          {/* Columna Izquierda: Formulario */}
-          <div>
+        {/* Columna Izquierda: Formulario dentro de un contenedor azulito clarito */}
+          <div className="bg-sky-500/10 border border-sky-400/20 rounded-2xl p-6 sm:p-8 backdrop-blur-sm shadow-xl">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-1 w-10 bg-amber-400 rounded-full" />
               <h2 className="text-3xl font-bold text-white">Contáctanos</h2>
@@ -305,7 +305,7 @@ const LandingPage = () => {
                 value={form.nombre} 
                 onChange={(e) => setForm({ ...form, nombre: e.target.value })} 
                 required 
-                className="bg-white text-blue-900 border-0 placeholder:text-blue-400" 
+                className="bg-white text-blue-900 border-0 placeholder:text-blue-400 h-11" 
               />
               <Input 
                 type="email" 
@@ -313,9 +313,9 @@ const LandingPage = () => {
                 value={form.correo} 
                 onChange={(e) => setForm({ ...form, correo: e.target.value })} 
                 required 
-                className="bg-white text-blue-900 border-0 placeholder:text-blue-400" 
+                className="bg-white text-blue-900 border-0 placeholder:text-blue-400 h-11" 
               />
-              <button type="submit" className="inline-flex items-center justify-center h-10 px-6 rounded-md text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+              <button type="submit" className="w-full sm:w-auto inline-flex items-center justify-center h-11 px-8 rounded-md text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-all duration-300 shadow-md">
                 Enviar mensaje
               </button>
             </form>
