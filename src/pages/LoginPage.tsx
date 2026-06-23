@@ -63,12 +63,13 @@ export default function LoginPage() {
         // 3. Navegamos al dashboard
         navigate("/dashboard");
       } else {
-        // Error de credenciales (401, 404, etc)
+        // Error de credenciales (401, 404, etc) - ¡Modificado para limpiar password!
         toast({
           title: "Error de acceso",
           description: data.mensaje || "Credenciales incorrectas.",
           variant: "destructive",
         });
+        setPassword(""); // Borra la contraseña incorrecta automáticamente
       }
     } catch (error) {
       // Error de conexión (Servidor apagado o sin internet)
@@ -99,7 +100,7 @@ export default function LoginPage() {
       {/* 2. OVERLAY */}
       <div className="absolute inset-0 bg-blue-950/60 backdrop-blur-[2px]" />
 
-      {/* BOTÓN VOLVER  */}
+     {/* BOTÓN VOLVER REDISEÑADO */}
       <motion.button
         onClick={() => navigate("/")}
         initial={{ opacity: 0, x: -20 }}
@@ -107,9 +108,9 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="absolute top-6 left-6 z-20 flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-100 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-sky-400/40 rounded-xl backdrop-blur-md transition-all group shadow-lg hover:shadow-sky-500/10"
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold text-sky-100 bg-sky-500/15 hover:bg-sky-500/30 border border-sky-400/20 hover:text-white rounded-full backdrop-blur-md transition-all duration-300 group shadow-lg shadow-black/10"
       >
-        <ArrowLeft className="h-4 w-4 transform group-hover:-translate-x-1.5 transition-transform duration-300 text-sky-400 group-hover:text-sky-300" />
+        <ArrowLeft className="h-3.5 w-3.5 transform group-hover:-translate-x-1 transition-transform duration-300 text-sky-400 group-hover:text-sky-300" />
         <span>Volver al Inicio</span>
       </motion.button>
 
@@ -175,15 +176,18 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-950 text-white py-3 rounded-xl font-bold hover:bg-[#cc9a1b] transition-all shadow-lg active:scale-[0.98] mt-2 disabled:opacity-70"
+                className="w-full bg-blue-950 text-white py-3 rounded-xl font-bold hover:bg-blue-900 active:scale-[0.97] transition-all duration-300 ease-in-out shadow-lg shadow-blue-950/20 hover:shadow-xl mt-2 disabled:bg-blue-950/40 disabled:cursor-not-allowed uppercase tracking-wider text-sm flex items-center justify-center"
               >
-                {isLoading ? "CONECTANDO..." : "INGRESAR AL PANEL"}
+                {isLoading ? (
+                  <span className="flex items-center gap-2 animate-pulse">Conectando...</span>
+                ) : (
+                  "Ingresar al Panel"
+                )}
               </button>
-            </form>
+             </form>
             
             <p className="text-center text-[10px] text-slate-400 mt-8 leading-tight">
               Acceso restringido a personal autorizado.
@@ -191,6 +195,20 @@ export default function LoginPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* EFECTO DE OLAS ANIMADAS EN EL FONDO */}
+      <div className="absolute bottom-0 left-0 right-0 w-full overflow-hidden leading-[0] z-0 opacity-20 pointer-events-none">
+        <motion.svg 
+          animate={{ x: [-100, 0, -100] }}
+          transition={{ repeat: Infinity, duration: 15, ease: "linear" }}
+          viewBox="0 0 1200 120" 
+          preserveAspectRatio="none" 
+          className="relative block w-[200%] h-[60px] text-sky-400"
+        >
+          <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V0C26.9,4.75,55.05,8.12,83,11.23,158,19.62,233.17,23.3,321.39,56.44Z" fill="currentColor"></path>
+        </motion.svg>
+      </div>
+
     </div>
   );
 }
