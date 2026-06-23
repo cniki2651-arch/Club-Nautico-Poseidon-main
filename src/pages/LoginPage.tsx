@@ -99,7 +99,7 @@ export default function LoginPage() {
       {/* 2. OVERLAY */}
       <div className="absolute inset-0 bg-blue-950/60 backdrop-blur-[2px]" />
 
-      {/* BOTÓN VOLVER  */}
+     {/* BOTÓN VOLVER REDISEÑADO */}
       <motion.button
         onClick={() => navigate("/")}
         initial={{ opacity: 0, x: -20 }}
@@ -107,9 +107,9 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        className="absolute top-6 left-6 z-20 flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-slate-100 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-sky-400/40 rounded-xl backdrop-blur-md transition-all group shadow-lg hover:shadow-sky-500/10"
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 text-xs font-semibold text-sky-100 bg-sky-500/15 hover:bg-sky-500/30 border border-sky-400/20 hover:text-white rounded-full backdrop-blur-md transition-all duration-300 group shadow-lg shadow-black/10"
       >
-        <ArrowLeft className="h-4 w-4 transform group-hover:-translate-x-1.5 transition-transform duration-300 text-sky-400 group-hover:text-sky-300" />
+        <ArrowLeft className="h-3.5 w-3.5 transform group-hover:-translate-x-1 transition-transform duration-300 text-sky-400 group-hover:text-sky-300" />
         <span>Volver al Inicio</span>
       </motion.button>
 
