@@ -32,6 +32,7 @@ const menuByRole: Record<Role, { title: string; url: string; icon: React.Element
   Secretaria: [
     itemInicio,
     { title: "Buscar Socios", url: "/dashboard/socios/buscar", icon: Search },
+    { title: "Historial de consumo", url: "/dashboard/socios/historial", icon: Search },
   ],
   Naviero: [
     itemInicio,
@@ -57,7 +58,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { currentRole } = useRole();
 
-  // 🚀 NUEVO: Estado e Inicialización del Modo Oscuro
+  //  Estado e Inicialización del Modo Oscuro
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
       return document.documentElement.classList.contains("dark") || 
