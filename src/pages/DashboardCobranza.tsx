@@ -63,10 +63,22 @@ export default function DashboardCobranza() {
     toast({ title: "Intereses calculados", description: `Se aplicó ${state.tasaSBS}% a ${morosos.length} socio(s) moroso(s).` });
   }
 
-  function handlePago(e: React.FormEvent) {
+function handlePago(e: React.FormEvent) {
     e.preventDefault();
     const monto = parseFloat(pMonto);
     if (!pSocio || isNaN(monto) || monto <= 0) return;
+
+    // Candado funcional: Evitar sobrepagos accidentales
+    const deudaTotal = state.cuentas.find((c) => c.socioId === pSocio)?.total ?? 0;
+    if (monto > deudaTotal) {
+      toast({
+        title: "Monto excede la deuda",
+        description: `El socio solo adeuda ${fmt(deudaTotal)}. No se puede registrar un pago mayor.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     dispatch({ type: "REGISTRAR_PAGO", payload: { socioId: pSocio, monto } });
     const socio = state.socios.find((s) => s.id === pSocio);
     toast({ title: "Pago registrado", description: `${fmt(monto)} abonado a la cuenta de ${socio?.nombre}.` });
