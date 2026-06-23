@@ -95,12 +95,12 @@ const LandingPage = () => {
             <span className="font-bold text-lg text-white hidden sm:inline">Club Náutico Poseidón</span>
           </button>
 
-          <nav className="hidden md:flex items-center gap-6">
+    <nav className="hidden md:flex items-center gap-7">
             {navLinks.map((l) => (
               <button
                 key={l}
                 onClick={() => scrollTo(l.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))}
-                className="text-sm font-medium text-blue-200 hover:text-sky-300 transition-colors"
+                className="text-xs font-semibold text-sky-100 bg-sky-500/15 hover:bg-sky-500/30 px-4 py-2 rounded-full border border-sky-400/20 hover:text-white transition-all duration-300 shadow-sm"
               >
                 {l}
               </button>
