@@ -176,11 +176,10 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-
-             <button
+              <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-950 text-white py-3 rounded-xl font-bold hover:bg-blue-900 active:scale-[0.97] transition-all duration-300 ease-in-out shadow-lg shadow-blue-950/20 hover:shadow-xl mt-2 disabled:opacity-70 disabled:pointer-events-none uppercase tracking-wider text-sm flex items-center justify-center"
+                className="w-full bg-blue-950 text-white py-3 rounded-xl font-bold hover:bg-blue-900 active:scale-[0.97] transition-all duration-300 ease-in-out shadow-lg shadow-blue-950/20 hover:shadow-xl mt-2 disabled:bg-blue-950/40 disabled:cursor-not-allowed uppercase tracking-wider text-sm flex items-center justify-center"
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2 animate-pulse">Conectando...</span>
