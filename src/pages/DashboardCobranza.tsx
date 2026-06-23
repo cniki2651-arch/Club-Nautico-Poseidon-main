@@ -54,11 +54,19 @@ export default function DashboardCobranza() {
     toast({ title: "Tasa SBS actualizada", description: `Nueva tasa: ${tasa}% mensual.` });
   }
 
-  function handleCalcularIntereses() {
+function handleCalcularIntereses() {
     if (morosos.length === 0) {
       toast({ title: "Sin morosos", description: "No hay socios morosos para calcular intereses." });
       return;
     }
+
+    // Candado funcional: Doble verificación para acciones masivas
+    const confirmar = window.confirm(
+      `¿Está seguro de que desea aplicar la tasa SBS del ${state.tasaSBS}% a los ${morosos.length} socios en mora? Esto modificará los saldos actuales.`
+    );
+
+    if (!confirmar) return; // Si cancela, detiene la operación de inmediato
+
     dispatch({ type: "CALCULAR_INTERESES" });
     toast({ title: "Intereses calculados", description: `Se aplicó ${state.tasaSBS}% a ${morosos.length} socio(s) moroso(s).` });
   }
