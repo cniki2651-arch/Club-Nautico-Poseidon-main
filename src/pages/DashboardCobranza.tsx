@@ -226,56 +226,58 @@ export default function DashboardCobranza() {
           </CardContent>
         </Card>
 
-        {/* Registrar Pago */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              Registrar Pago
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handlePago} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label>Socio</Label>
-                <Select value={pSocio} onValueChange={setPSocio}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar socio" /></SelectTrigger>
-                  <SelectContent>
-                    {state.socios.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {pSocio && (
-                <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm">
-                  <p className="text-muted-foreground text-xs mb-1">Deuda actual</p>
-                  <p className="font-bold text-slate-900">
-                    {fmt(state.cuentas.find((c) => c.socioId === pSocio)?.total ?? 0)}
-                  </p>
+      {/* Registrar Pago */}
+        <div className="md:col-span-2 flex justify-center w-full mt-2">
+          <Card className="w-full max-w-xl shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                Registrar Pago
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePago} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Socio</Label>
+                  <Select value={pSocio} onValueChange={setPSocio}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar socio" /></SelectTrigger>
+                    <SelectContent>
+                      {state.socios.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
 
-              <div className="space-y-1.5">
-                <Label>Monto a Pagar (S/)</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  min="0.01"
-                  step="0.01"
-                  value={pMonto}
-                  onChange={(e) => setPMonto(e.target.value)}
-                  required
-                />
-              </div>
+                {pSocio && (
+                  <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm">
+                    <p className="text-muted-foreground text-xs mb-1">Deuda actual</p>
+                    <p className="font-bold text-slate-900">
+                      {fmt(state.cuentas.find((c) => c.socioId === pSocio)?.total ?? 0)}
+                    </p>
+                  </div>
+                )}
 
-              <Button type="submit" className="w-full gap-2" disabled={!pSocio || !pMonto}>
-                <CreditCard className="h-4 w-4" /> Registrar Pago
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                <div className="space-y-1.5">
+                  <Label>Monto a Pagar (S/)</Label>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    min="0.01"
+                    step="0.01"
+                    value={pMonto}
+                    onChange={(e) => setPMonto(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <Button type="submit" className="w-full gap-2" disabled={!pSocio || !pMonto}>
+                  <CreditCard className="h-4 w-4" /> Registrar Pago
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
