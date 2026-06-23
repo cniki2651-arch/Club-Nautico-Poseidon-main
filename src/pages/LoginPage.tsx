@@ -176,12 +176,16 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <button
+             <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-950 text-white py-3 rounded-xl font-bold hover:bg-[#cc9a1b] transition-all shadow-lg active:scale-[0.98] mt-2 disabled:opacity-70"
+                className="w-full bg-blue-950 text-white py-3 rounded-xl font-bold hover:bg-blue-900 active:scale-[0.97] transition-all duration-300 ease-in-out shadow-lg shadow-blue-950/20 hover:shadow-xl mt-2 disabled:opacity-70 disabled:pointer-events-none uppercase tracking-wider text-sm flex items-center justify-center"
               >
-                {isLoading ? "CONECTANDO..." : "INGRESAR AL PANEL"}
+                {isLoading ? (
+                  <span className="flex items-center gap-2 animate-pulse">Conectando...</span>
+                ) : (
+                  "Ingresar al Panel"
+                )}
               </button>
             </form>
             
