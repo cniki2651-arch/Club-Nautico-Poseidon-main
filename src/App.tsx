@@ -17,6 +17,7 @@ import EmbarcacionesPage from "./pages/EmbarcacionesPage";
 import ZarpesPage from "./pages/ZarpesPage";
 import FacturacionPage from "./pages/FacturacionPage";
 import DashboardCobranza from "./pages/DashboardCobranza";
+import HistorialConsumosPage from "./pages/HistorialConsumosPage";
 import NotFound from "./pages/NotFound";
 
 import UsuariosPage from "./pages/UsuariosPage";
@@ -53,6 +54,7 @@ const App = () => (
                     <Route index element={<DashboardPage />} />
                     <Route path="socios" element={<SecretariaView />} />
                     <Route path="socios/buscar" element={<SociosPage />} />
+                    <Route path="socios/historial" element={<HistorialConsumosPage />} />
                     <Route path="embarcaciones" element={<EmbarcacionesPage />} />
                     <Route path="zarpes" element={<ZarpesPage />} />
                     <Route path="facturacion" element={
