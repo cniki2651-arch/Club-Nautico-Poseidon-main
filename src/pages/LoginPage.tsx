@@ -63,12 +63,13 @@ export default function LoginPage() {
         // 3. Navegamos al dashboard
         navigate("/dashboard");
       } else {
-        // Error de credenciales (401, 404, etc)
+        // Error de credenciales (401, 404, etc) - ¡Modificado para limpiar password!
         toast({
           title: "Error de acceso",
           description: data.mensaje || "Credenciales incorrectas.",
           variant: "destructive",
         });
+        setPassword(""); // Borra la contraseña incorrecta automáticamente
       }
     } catch (error) {
       // Error de conexión (Servidor apagado o sin internet)
