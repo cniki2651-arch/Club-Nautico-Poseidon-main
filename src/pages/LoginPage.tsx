@@ -5,7 +5,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useRole } from "@/contexts/RoleContext";
 import { useToast } from "@/hooks/use-toast";
 
-// Definimos la URL de la API usando la variable de entorno que creamos en el .env
+
 const API_URL = `${import.meta.env.VITE_API_URL}/api/auth/login`;
 
 export default function LoginPage() {
@@ -16,32 +16,32 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Estado para mostrar que está cargando
+  const [isLoading, setIsLoading] = useState(false); 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Petición real al backend de Render
+      
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          correo: email,       // Tu API espera "correo"
-          contrasena: password // Tu API espera "contrasena"
+          correo: email,       
+          contrasena: password 
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // 1. Guardamos los Tokens en localStorage (como pide el manual pág. 9)
+      
         localStorage.setItem("accessToken", data.accessToken);
         localStorage.setItem("refreshToken", data.refreshToken);
         localStorage.setItem("id_rol", String(data.usuario.id_rol));
         
-        // 1. Definimos los tipos permitidos para que TypeScript no se queje
+        
         const rolesMap: Record<number, "Jefe" | "Secretaria" | "Naviero" | "Finanzas"> = {
           1: "Jefe",
           2: "Secretaria",
@@ -49,30 +49,30 @@ export default function LoginPage() {
           4: "Finanzas"
         };
 
-        // 2. Obtenemos el nombre del rol usando el ID que viene del servidor
+        
         const roleName = rolesMap[data.usuario.id_rol];
 
         if (roleName) {
-          setCurrentRole(roleName); // Ahora sí funcionará sin errores
+          setCurrentRole(roleName); 
         }
         toast({
           title: "¡Bienvenido a bordo!",
           description: `Has ingresado como ${data.usuario.nombres}`,
         });
 
-        // 3. Navegamos al dashboard
+        
         navigate("/dashboard");
       } else {
-        // Error de credenciales (401, 404, etc) - ¡Modificado para limpiar password!
+        
         toast({
           title: "Error de acceso",
           description: data.mensaje || "Credenciales incorrectas.",
           variant: "destructive",
         });
-        setPassword(""); // Borra la contraseña incorrecta automáticamente
+        setPassword(""); 
       }
     } catch (error) {
-      // Error de conexión (Servidor apagado o sin internet)
+      
       toast({
         title: "Error de conexión",
         description: "No se pudo conectar con el servidor de Poseidón.",
