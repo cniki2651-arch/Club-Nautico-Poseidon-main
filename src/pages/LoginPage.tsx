@@ -42,11 +42,12 @@ export default function LoginPage() {
         localStorage.setItem("id_rol", String(data.usuario.id_rol));
         
         
-        const rolesMap: Record<number, "Jefe" | "Secretaria" | "Naviero" | "Finanzas"> = {
+        const rolesMap: Record<number, "Jefe" | "Secretaria" | "Naviero" | "Finanzas" | "Cobranza"> = {
           1: "Jefe",
           2: "Secretaria",
           3: "Naviero",
-          4: "Finanzas"
+          4: "Finanzas",
+          5: "Cobranza"
         };
 
         
