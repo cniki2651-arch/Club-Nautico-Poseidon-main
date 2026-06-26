@@ -343,7 +343,7 @@ const LandingPage = () => {
             <div className="rounded-xl overflow-hidden bg-blue-800 h-64 border border-blue-700 shadow-lg relative">
               <iframe
               title="Ubicación Centro Naval del Perú - Sede Callao"
-               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3901.554374189035!2d-77.1491754!3d-12.0535212!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x9105cb4321689531%3A0xc340b8f60b4a4c5a!2sCentro%20Naval%20del%20Per%C3%BA%20-%20Sede%20Callao!5e0!3m2!1ses-419!2spe!4v1709245000000!5m2!1ses-419!2spe"
+               src="https://maps.google.com/maps?q=Centro%20Naval%20del%20Per%C3%BA%20-%20Sede%20Callao&t=&z=16&ie=UTF8&iwloc=&output=embed"
                width="100%"
                height="100%"
                style={{ border: 0 }}
