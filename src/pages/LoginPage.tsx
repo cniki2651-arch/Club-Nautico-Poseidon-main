@@ -192,6 +192,7 @@ export default function LoginPage() {
             
             <p className="text-center text-[10px] text-slate-400 mt-8 leading-tight">
               Acceso restringido a personal autorizado.
+              © 2026 Club Poseidón
             </p>
           </div>
         </div>
