@@ -3,7 +3,7 @@ import {
   Search, ClipboardCheck, BarChart3,
   Navigation, Ship, DollarSign, UserPlus,
   LogOut, UserCog, LayoutDashboard,
-  Sun, Moon, ShieldAlert
+  Sun, Moon, ShieldAlert, FileClock
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -32,7 +32,7 @@ const menuByRole: Record<Role, { title: string; url: string; icon: React.Element
   Secretaria: [
     itemInicio,
     { title: "Buscar Socios", url: "/dashboard/socios/buscar", icon: Search },
-    { title: "Historial de consumo", url: "/dashboard/socios/historial", icon: Search },
+    { title: "Historial de consumo", url: "/dashboard/socios/historial", icon: FileClock },
   ],
   Naviero: [
     itemInicio,
@@ -42,16 +42,12 @@ const menuByRole: Record<Role, { title: string; url: string; icon: React.Element
   Finanzas: [
     itemInicio,
     { title: "Panel Financiero", url: "/dashboard/facturacion", icon: DollarSign },
-    
   ],
-  
-  
   Cobranza: [
-    
+    itemInicio,
     { title: "Gestión de Morosidad", url: "/dashboard/morosidad", icon: ShieldAlert },
   ],
 };
-  
 
 export function AppSidebar() {
   const { state, toggleSidebar } = useSidebar();
