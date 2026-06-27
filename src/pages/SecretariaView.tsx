@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
   ClipboardList, Users, AlertTriangle, Eye, FileText, 
-  CreditCard, Search, Filter 
+  CreditCard, Search, Filter, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
@@ -54,15 +55,21 @@ interface ConsumoPlano {
   monto: number;
 }
 
+const OPCIONES_POR_PAGINA = [5, 10, 25, 50];
+
 export default function SecretariaView() {
-  //  ESTADOS DE FILTRADO DINÁMICO 
+  
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
 
-  //  ESTADOS OPERATIVOS 
+ 
   const [solicitudes, setSolicitudes] = useState<SolicitudAPI[]>([]);
   const [cargandoLista, setCargandoLista] = useState(true);
   const [errorLista, setErrorLista] = useState<string | null>(null);
+
+  //  Estado de paginación (tabla de Solicitudes en curso) 
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
   
   const [metricas, setMetricas] = useState({
     solicitudesEnEspera: 0,
@@ -84,22 +91,22 @@ export default function SecretariaView() {
   const [nombreInstructor, setNombreInstructor] = useState("");
   const [guardandoServicio, setGuardandoServicio] = useState(false);
 
-  // Búsqueda de socio por documento (verificación visual antes de registrar)
+  // Búsqueda de socio por documento 
   const [socioEncontrado, setSocioEncontrado] = useState<{ nombres: string; apellidos: string; clasificacion: string } | null>(null);
   const [buscandoSocio, setBuscandoSocio] = useState(false);
   const [errorBusquedaSocio, setErrorBusquedaSocio] = useState<string | null>(null);
 
-  // Detecta si el servicio elegido corresponde a un instructor (requiere capturar su nombre)
+  // Detecta si el servicio elegido corresponde a un instructor 
   const esServicioInstructor =
     categoriaServicio === "Instructor de Natación" ||
     categoriaServicio === "Instructor de Buceo" ||
     categoriaServicio === "Escuela de Navegación";
 
-  // Precios preestablecidos por servicio (vienen del backend)
+  // Precios preestablecidos por servicio 
   const [preciosServicios, setPreciosServicios] = useState<Record<string, number>>({});
   const [cargandoPrecios, setCargandoPrecios] = useState(false);
 
-  //  CONSULTA AL BACKEND: PRECIOS DE SERVICIOS 
+  //   PRECIOS DE SERVICIOS 
   const fetchPreciosServicios = async () => {
     setCargandoPrecios(true);
     try {
@@ -116,13 +123,13 @@ export default function SecretariaView() {
       data.forEach((item) => { mapa[item.servicio] = item.monto; });
       setPreciosServicios(mapa);
     } catch {
-      /* Silencioso: si falla, el monto queda editable manualmente */
+      
     } finally {
       setCargandoPrecios(false);
     }
   };
 
-  //  BUSCAR SOCIO POR DOCUMENTO (verificación visual antes de registrar)
+  //  BUSCAR SOCIO POR DOCUMENTO 
   const buscarSocioPorDocumento = async (tipoDoc: string, numero: string) => {
     if (!numero.trim()) {
       setSocioEncontrado(null);
@@ -173,10 +180,10 @@ export default function SecretariaView() {
         sociosActivos: data.sociosActivos ?? 0,
         alertas: data.alertas ?? 0,
       });
-    } catch { /* Silencioso */ }
+    } catch {  }
   };
 
-  //  CONSULTA AL BACKEND: LISTAR SOLICITUDES 
+  //   LISTAR SOLICITUDES 
   const fetchSolicitudes = async () => {
     setCargandoLista(true);
     setErrorLista(null);
@@ -206,7 +213,7 @@ export default function SecretariaView() {
     fetchPreciosServicios();
   }, []);
 
-  //  AUTOCOMPLETAR MONTO SEGÚN SERVICIO SELECCIONADO 
+  //  AUTOCOMPLETAR MONTO 
   useEffect(() => {
     if (categoriaServicio === "Otros") return; // se ingresa manualmente
     if (preciosServicios[categoriaServicio] !== undefined) {
@@ -229,6 +236,34 @@ export default function SecretariaView() {
     const matchEstado = filtroEstado === "Todos" || s.estado === filtroEstado;
     return matchTexto && matchEstado;
   });
+
+  // Cálculos de paginación 
+  const totalRegistros = solicitudesFiltradas.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalRegistros / registrosPorPagina));
+
+  // Si la búsqueda/filtro reduce los resultados y la página actual queda fuera
+  // de rango, volvemos automáticamente a la página 1.
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, filtroEstado, registrosPorPagina]);
+
+  const indiceInicio = (paginaActual - 1) * registrosPorPagina;
+  const indiceFin = Math.min(indiceInicio + registrosPorPagina, totalRegistros);
+  const solicitudesPaginadas = solicitudesFiltradas.slice(indiceInicio, indiceFin);
+
+  const irAPagina = (pagina: number) => {
+    if (pagina < 1 || pagina > totalPaginas) return;
+    setPaginaActual(pagina);
+  };
+
+  // Genera una lista corta de números de página alrededor de la actual.
+  const numerosDePagina = () => {
+    const paginas: number[] = [];
+    const inicio = Math.max(1, paginaActual - 2);
+    const fin = Math.min(totalPaginas, inicio + 4);
+    for (let i = inicio; i <= fin; i++) paginas.push(i);
+    return paginas;
+  };
 
   //  ENVÍO AL BACKEND CARGAR CONSUMO 
   const handleRegistrarServicioSubmit = async (e: React.FormEvent) => {
@@ -469,10 +504,27 @@ export default function SecretariaView() {
 
       {/* Tabla Unificada */}
       <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm">
-        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 px-6 py-4">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 px-6 py-4 flex flex-row items-center justify-between gap-3">
           <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider">
             Solicitudes en curso
           </CardTitle>
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <span>Mostrar</span>
+            <Select
+              value={String(registrosPorPagina)}
+              onValueChange={(val) => setRegistrosPorPagina(Number(val))}
+            >
+              <SelectTrigger className="w-16 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OPCIONES_POR_PAGINA.map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span>registros</span>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -499,14 +551,14 @@ export default function SecretariaView() {
                     {errorLista}
                   </TableCell>
                 </TableRow>
-              ) : solicitudesFiltradas.length === 0 ? (
+              ) : solicitudesPaginadas.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-slate-400 py-10 text-sm">
                     No se encontraron coincidencias en la bandeja.
                   </TableCell>
                 </TableRow>
               ) : (
-                solicitudesFiltradas.map((s) => (
+                solicitudesPaginadas.map((s) => (
                   <TableRow key={s.id_solicitud} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors group">
                     <TableCell className="font-mono text-xs pl-6 py-4">
                       <span className="text-slate-400 mr-1.5 font-bold">{s.tipo_doc_siglas || "DNI"}</span>
@@ -564,6 +616,53 @@ export default function SecretariaView() {
               )}
             </TableBody>
           </Table>
+
+          {/* ── Barra de paginación ────────────────────────────────────── */}
+          {!cargandoLista && !errorLista && totalRegistros > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Mostrando registros del <span className="font-semibold">{indiceInicio + 1}</span> al{" "}
+                <span className="font-semibold">{indiceFin}</span> de un total de{" "}
+                <span className="font-semibold">{totalRegistros}</span> registros
+              </p>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-8"
+                  onClick={() => irAPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Anterior
+                </Button>
+
+                {numerosDePagina().map((num) => (
+                  <Button
+                    key={num}
+                    variant={num === paginaActual ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => irAPagina(num)}
+                  >
+                    {num}
+                  </Button>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-8"
+                  onClick={() => irAPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                >
+                  Siguiente
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
