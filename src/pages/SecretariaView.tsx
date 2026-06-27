@@ -471,7 +471,7 @@ export default function SecretariaView() {
       <Card className="border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-sm">
         <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 px-6 py-4">
           <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Cola de solicitudes en curso
+            Solicitudes en curso
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
