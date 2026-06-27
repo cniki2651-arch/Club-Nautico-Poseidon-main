@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { CreditCard, Search, Loader2 } from "lucide-react";
+import { CreditCard, Search, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ConsumoDetalle {
   id_consumo: number;
@@ -33,19 +34,23 @@ interface ConsumoPlano {
   monto: number;
 }
 
+const OPCIONES_POR_PAGINA = [10, 25, 50, 100];
+
 export default function HistorialConsumosPage() {
   const [consumosList, setConsumosList] = useState<ConsumoPlano[]>([]);
   const [cargandoConsumos, setCargandoConsumos] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+
+  // ── Estado de paginación ─────────────────────────────────────────────────
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
 
   const fetchConsumos = async () => {
     setCargandoConsumos(true);
     try {
       const token = localStorage.getItem("accessToken");
       const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
-      
-      //  AQUÍ ESTÁ EL CAMBIO: Apuntamos al historial general, no a los pendientes.
-      // (Verifica que la ruta en tu backend sea exactamente esta)
+
       const res = await fetch(`${apiUrl}/api/facturacion/consumos`, {
         headers: {
           "Content-Type": "application/json",
@@ -54,7 +59,7 @@ export default function HistorialConsumosPage() {
       });
       if (!res.ok) return;
       const data: SocioConsumosAPI[] = await res.json();
-      
+
       const flatList: ConsumoPlano[] = [];
       data.forEach((socio) => {
         socio.consumos.forEach((c) => {
@@ -87,6 +92,35 @@ export default function HistorialConsumosPage() {
 
   const totalConsumosMonto = consumosFiltrados.reduce((acc, curr) => acc + curr.monto, 0);
 
+  // ── Cálculos de paginación ──────────────────────────────────────────────
+  const totalRegistros = consumosFiltrados.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalRegistros / registrosPorPagina));
+
+  // Si la búsqueda reduce los resultados y la página actual queda fuera de rango,
+  // volvemos automáticamente a la página 1 para no mostrar una tabla vacía.
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda, registrosPorPagina]);
+
+  const indiceInicio = (paginaActual - 1) * registrosPorPagina;
+  const indiceFin = Math.min(indiceInicio + registrosPorPagina, totalRegistros);
+  const consumosPaginados = consumosFiltrados.slice(indiceInicio, indiceFin);
+
+  const irAPagina = (pagina: number) => {
+    if (pagina < 1 || pagina > totalPaginas) return;
+    setPaginaActual(pagina);
+  };
+
+  // Genera una lista corta de números de página alrededor de la actual,
+  // para no mostrar 50 botones si hay muchas páginas.
+  const numerosDePagina = () => {
+    const paginas: number[] = [];
+    const inicio = Math.max(1, paginaActual - 2);
+    const fin = Math.min(totalPaginas, inicio + 4);
+    for (let i = inicio; i <= fin; i++) paginas.push(i);
+    return paginas;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -107,7 +141,6 @@ export default function HistorialConsumosPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                {/* CAMBIO DE TEXTO PARA REFLEJAR HISTORIAL */}
                 <p className="text-sm text-muted-foreground">Monto Total Histórico</p>
                 <p className="text-2xl font-bold text-foreground">
                   {cargandoConsumos ? "Calculando..." : `S/ ${totalConsumosMonto.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
@@ -124,10 +157,9 @@ export default function HistorialConsumosPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
-                {/*  CAMBIO DE TEXTO PARA REFLEJAR HISTORIAL */}
                 <p className="text-sm text-muted-foreground">Total de Consumos Registrados</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {cargandoConsumos ? "..." : consumosFiltrados.length}
+                  {cargandoConsumos ? "..." : totalRegistros}
                 </p>
               </div>
               <div className="p-2.5 rounded-lg bg-blue-500/10">
@@ -138,16 +170,35 @@ export default function HistorialConsumosPage() {
         </Card>
       </div>
 
+      {/* Barra de búsqueda + selector de registros por página */}
       <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <Input 
-            type="text" 
-            placeholder="Buscar por socio o DNI..." 
+          <Input
+            type="text"
+            placeholder="Buscar por socio o DNI..."
             className="pl-9 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-lg text-sm"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
+        </div>
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>Mostrar</span>
+          <Select
+            value={String(registrosPorPagina)}
+            onValueChange={(val) => setRegistrosPorPagina(Number(val))}
+          >
+            <SelectTrigger className="w-20 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {OPCIONES_POR_PAGINA.map((n) => (
+                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span>registros</span>
         </div>
       </div>
 
@@ -170,14 +221,14 @@ export default function HistorialConsumosPage() {
                     Cargando historial completo de consumos...
                   </TableCell>
                 </TableRow>
-              ) : consumosFiltrados.length === 0 ? (
+              ) : consumosPaginados.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-slate-400 py-10 text-sm">
                     No se han registrado consumos en la base de datos.
                   </TableCell>
                 </TableRow>
               ) : (
-                consumosFiltrados.map((c) => (
+                consumosPaginados.map((c) => (
                   <TableRow key={c.id_consumo} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
                     <TableCell className="font-mono text-xs pl-6 py-4">
                       <span className="text-slate-400 mr-1.5 font-bold">{c.tipo_doc_siglas}</span>
@@ -198,6 +249,53 @@ export default function HistorialConsumosPage() {
               )}
             </TableBody>
           </Table>
+
+          {/* ── Barra de paginación ────────────────────────────────────── */}
+          {!cargandoConsumos && totalRegistros > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Mostrando registros del <span className="font-semibold">{indiceInicio + 1}</span> al{" "}
+                <span className="font-semibold">{indiceFin}</span> de un total de{" "}
+                <span className="font-semibold">{totalRegistros}</span> registros
+              </p>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-8"
+                  onClick={() => irAPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Anterior
+                </Button>
+
+                {numerosDePagina().map((num) => (
+                  <Button
+                    key={num}
+                    variant={num === paginaActual ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => irAPagina(num)}
+                  >
+                    {num}
+                  </Button>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-8"
+                  onClick={() => irAPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                >
+                  Siguiente
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
