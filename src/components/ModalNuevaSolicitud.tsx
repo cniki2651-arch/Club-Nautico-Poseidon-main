@@ -45,6 +45,9 @@ const formVacio = {
   correo:        "",
 };
 
+// Solo letras (con tildes y ñ) y espacios; nada de números ni símbolos.
+const REGEX_NOMBRE = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$/;
+
 // ---------------------------------------------------------------------------
 // Componente
 // ---------------------------------------------------------------------------
@@ -91,8 +94,64 @@ export default function ModalNuevaSolicitud({
     return null;
   };
 
+  // ── Validación de Nombres y Apellidos ─────────────────────────────────────
+  // Reglas: solo letras y espacios (con tildes y ñ), entre 2 y 50 caracteres,
+  // y cada palabra debe iniciar con mayúscula seguida de minúsculas
+  // (ej. "Juan Carlos" es válido; "juan carlos" o "JUAN CARLOS" no lo son).
+  const validarNombreOApellido = (valor: string, etiqueta: string): string | null => {
+    const limpio = valor.trim();
+    if (!limpio) return `${etiqueta} no puede estar vacío.`;
+    if (limpio.length < 2) return `${etiqueta} debe tener al menos 2 caracteres.`;
+    if (limpio.length > 50) return `${etiqueta} no puede superar los 50 caracteres.`;
+    if (!REGEX_NOMBRE.test(limpio)) return `${etiqueta} solo puede contener letras y espacios, sin números ni símbolos.`;
+
+    // Cada palabra (separada por espacios) debe iniciar con mayúscula
+    const palabras = limpio.split(/\s+/);
+    const todasConMayuscula = palabras.every((palabra) => /^[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]*$/.test(palabra));
+    if (!todasConMayuscula) {
+      return `${etiqueta}: cada palabra debe iniciar con mayúscula (ej. "Juan Carlos").`;
+    }
+
+    return null;
+  };
+
+  // Mientras el usuario escribe: solo bloquea números y símbolos,
+  // pero NO fuerza mayúsculas en cada tecla (eso sería molesto de escribir).
+  const handleChangeSoloLetras = (campo: "nombres" | "apellidos", valor: string) => {
+    const filtrado = valor.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]/g, "");
+    setForm((prev) => ({ ...prev, [campo]: filtrado }));
+  };
+
+  // Al salir del campo (onBlur), capitaliza automáticamente cada palabra,
+  // para ayudar al usuario a cumplir la regla sin que tenga que pensarlo
+  // (ej. si escribió "juan carlos", lo convierte a "Juan Carlos").
+  const capitalizarPalabras = (campo: "nombres" | "apellidos") => {
+    setForm((prev) => {
+      const valor = prev[campo].trim();
+      if (!valor) return prev;
+      const capitalizado = valor
+        .toLowerCase()
+        .split(/\s+/)
+        .map((palabra) => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+        .join(" ");
+      return { ...prev, [campo]: capitalizado };
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validar Nombres y Apellidos antes de cualquier otra cosa
+    const errorNombres = validarNombreOApellido(form.nombres, "Nombres");
+    if (errorNombres) {
+      setErrorMsg(errorNombres);
+      return;
+    }
+    const errorApellidos = validarNombreOApellido(form.apellidos, "Apellidos");
+    if (errorApellidos) {
+      setErrorMsg(errorApellidos);
+      return;
+    }
 
     // Validar documento antes de llamar al backend
     const errorDoc = validarDocumento(form.dni, idTipoDoc);
@@ -115,8 +174,8 @@ export default function ModalNuevaSolicitud({
         body: JSON.stringify({
           id_tipo_doc:   idTipoDoc,
           dni:           form.dni.trim().toUpperCase(),
-          nombres:       form.nombres,
-          apellidos:     form.apellidos,
+          nombres:       form.nombres.trim(),
+          apellidos:     form.apellidos.trim(),
           clasificacion: form.clasificacion,
           telefono:      form.telefono,
           correo:        form.correo,
@@ -167,9 +226,11 @@ export default function ModalNuevaSolicitud({
                 id="sol-nombres"
                 placeholder="Ej. Juan Carlos"
                 value={form.nombres}
-                onChange={(e) => handleChange("nombres", e.target.value)}
+                onChange={(e) => handleChangeSoloLetras("nombres", e.target.value)}
+                onBlur={() => capitalizarPalabras("nombres")}
                 required
                 autoComplete="given-name"
+                maxLength={50}
               />
             </div>
             <div className="space-y-1.5">
@@ -178,9 +239,11 @@ export default function ModalNuevaSolicitud({
                 id="sol-apellidos"
                 placeholder="Ej. Pérez García"
                 value={form.apellidos}
-                onChange={(e) => handleChange("apellidos", e.target.value)}
+                onChange={(e) => handleChangeSoloLetras("apellidos", e.target.value)}
+                onBlur={() => capitalizarPalabras("apellidos")}
                 required
                 autoComplete="family-name"
+                maxLength={50}
               />
             </div>
           </div>
