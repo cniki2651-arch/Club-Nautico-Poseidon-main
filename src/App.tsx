@@ -67,6 +67,17 @@ const App = () => (
                         <DashboardCobranza />
                       </RoleGuard>
                     } />
+
+                    <Route path="cobranza" element={
+                    <RoleGuard allowed={["Cobranza", "Jefe"]}>
+                    <DashboardCobranza />
+                    </RoleGuard>
+                    } />
+                   <Route path="pagos-realizados" element={
+                  <RoleGuard allowed={["Cobranza", "Jefe"]}>
+                  <DashboardCobranza />
+                  </RoleGuard>
+                  } />
                     <Route path="aprobaciones" element={<JefeView />} />
                     <Route path="usuarios" element={
                       <RoleGuard allowed={["Jefe"]}>

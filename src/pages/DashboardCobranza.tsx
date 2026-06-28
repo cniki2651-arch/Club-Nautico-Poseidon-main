@@ -189,7 +189,7 @@ export default function DashboardCobranza() {
   const selectedInvoicePV = porVencerList.find((f) => String(f.id_factura) === pFacturaIdPV);
 
   
-  //  Facturas morosas / vencidas (vista "/morosidad")
+  //  Facturas morosas / vencidas 
   const [morososList, setMorososList] = useState<FacturaMorosa[]>([]);
   const [loadingM, setLoadingM] = useState(false);
   const [errorM, setErrorM] = useState<string | null>(null);
@@ -301,7 +301,7 @@ export default function DashboardCobranza() {
 
   
   // Carga de datos según la vista activa.
-  // Solo se pide al backend lo que la vista actual necesita.
+  
   
   useEffect(() => {
     if (isMorosidad) {
@@ -309,7 +309,7 @@ export default function DashboardCobranza() {
     } else {
       fetchPorVencer();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [isMorosidad]);
 
   
