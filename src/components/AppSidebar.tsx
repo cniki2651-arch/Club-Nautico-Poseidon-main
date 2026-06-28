@@ -26,10 +26,11 @@ const itemInicio = { title: "Inicio", url: "/dashboard", icon: LayoutDashboard }
 
 const menuByRole: Record<Role, { title: string; url: string; icon: React.ElementType }[]> = {
   Jefe: [
-    itemInicio,
-    { title: "Aprobaciones y Retiros", url: "/dashboard/aprobaciones", icon: ClipboardCheck },
-    { title: "Gestión de Usuarios", url: "/dashboard/usuarios", icon: UserCog },
-  ],
+  itemInicio,
+  { title: "Aprobaciones y Retiros", url: "/dashboard/aprobaciones", icon: ClipboardCheck },
+  { title: "Gestión de Usuarios", url: "/dashboard/usuarios", icon: UserCog },
+  { title: "Pagos Realizados", url: "/dashboard/pagos-realizados", icon: CheckCircle2 }, 
+],
   Secretaria: [
     itemInicio,
     { title: "Buscar Socios", url: "/dashboard/socios/buscar", icon: Search },
