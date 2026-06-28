@@ -3,7 +3,8 @@ import {
   Search, ClipboardCheck, BarChart3,
   Navigation, Ship, DollarSign, UserPlus,
   LogOut, UserCog, LayoutDashboard,
-  Sun, Moon, ShieldAlert, FileClock
+  Sun, Moon, ShieldAlert, FileClock,
+  CheckCircle2 
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -44,9 +45,10 @@ const menuByRole: Record<Role, { title: string; url: string; icon: React.Element
     { title: "Panel Financiero", url: "/dashboard/facturacion", icon: DollarSign },
   ],
   Cobranza: [
-    itemInicio,
-    { title: "Gestión de Morosidad", url: "/dashboard/morosidad", icon: ShieldAlert },
-  ],
+  itemInicio,
+  { title: "Gestión de Morosidad", url: "/dashboard/morosidad", icon: ShieldAlert },
+  { title: "Pagos Realizados", url: "/dashboard/pagos-realizados", icon: CheckCircle2 },  
+],
 };
 
 export function AppSidebar() {
