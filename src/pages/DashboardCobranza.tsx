@@ -34,7 +34,8 @@ import { Label } from "@radix-ui/react-label";
 // - POST /api/facturacion/pagar     (registrar pago, con o sin interés)
 // ===================================================================
 
-const MOROSIDAD_PATH = "/dashboard/morosidad"; // ruta real definida en App.tsx
+const MOROSIDAD_PATH = "/dashboard/morosidad"; 
+const PAGOS_PATH = "/dashboard/pagos-realizados";
 
 function fmt(n: number) {
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
