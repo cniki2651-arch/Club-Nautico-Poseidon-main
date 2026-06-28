@@ -63,11 +63,10 @@ const App = () => (
                       </RoleGuard>
                     } />
                     <Route path="morosidad" element={
-                      <RoleGuard allowed={["Cobranza"]}>
-                        <DashboardCobranza />
-                      </RoleGuard>
-                    } />
-
+                     <RoleGuard allowed={["Cobranza", "Jefe"]}>
+                    <DashboardCobranza />
+                    </RoleGuard>
+                     } />
                     <Route path="cobranza" element={
                     <RoleGuard allowed={["Cobranza", "Jefe"]}>
                     <DashboardCobranza />
