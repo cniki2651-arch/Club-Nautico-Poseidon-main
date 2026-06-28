@@ -80,9 +80,9 @@ export default function DashboardCobranza() {
   const location = useLocation();
   const isMorosidad = location.pathname.startsWith(MOROSIDAD_PATH);
 
-  // ════════════════════════════════════════════════════════════════════════
+  
   // BLOQUE 1: Facturas por vencer (vista "/inicio")
-  // ════════════════════════════════════════════════════════════════════════
+  
   const [porVencerList, setPorVencerList] = useState<FacturaPorVencer[]>([]);
   const [loadingPV, setLoadingPV] = useState(false);
   const [errorPV, setErrorPV] = useState<string | null>(null);
@@ -187,9 +187,8 @@ export default function DashboardCobranza() {
 
   const selectedInvoicePV = porVencerList.find((f) => String(f.id_factura) === pFacturaIdPV);
 
-  // ════════════════════════════════════════════════════════════════════════
-  // BLOQUE 2: Facturas morosas / vencidas (vista "/morosidad")
-  // ════════════════════════════════════════════════════════════════════════
+  
+  //  Facturas morosas / vencidas (vista "/morosidad")
   const [morososList, setMorososList] = useState<FacturaMorosa[]>([]);
   const [loadingM, setLoadingM] = useState(false);
   const [errorM, setErrorM] = useState<string | null>(null);
@@ -299,10 +298,10 @@ export default function DashboardCobranza() {
 
   const selectedInvoiceM = morososList.find((f) => String(f.id_factura) === pFacturaIdM);
 
-  // ════════════════════════════════════════════════════════════════════════
+  
   // Carga de datos según la vista activa.
   // Solo se pide al backend lo que la vista actual necesita.
-  // ════════════════════════════════════════════════════════════════════════
+  
   useEffect(() => {
     if (isMorosidad) {
       fetchMorosos();
@@ -312,9 +311,9 @@ export default function DashboardCobranza() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMorosidad]);
 
-  // ════════════════════════════════════════════════════════════════════════
+  
   // VISTA: Gestión de Morosidad
-  // ════════════════════════════════════════════════════════════════════════
+  
   if (isMorosidad) {
     return (
       <div className="space-y-6">
@@ -645,10 +644,10 @@ export default function DashboardCobranza() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Inicio</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Facturas pendientes próximas a vencer y registro de pagos anticipados.
-          </p>
+          <h1 className="text-2xl font-bold text-foreground">Panel de Cobranza</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+                 Facturas pendientes próximas a vencer y registro de pagos anticipados.
+            </p>
         </div>
         <Button variant="outline" onClick={() => fetchPorVencer()} disabled={loadingPV} className="gap-2">
           {loadingPV && <Loader2 className="h-4 w-4 animate-spin" />}
