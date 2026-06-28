@@ -637,9 +637,9 @@ export default function DashboardCobranza() {
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  
   // VISTA: Inicio (facturas por vencer / pago anticipado)
-  // ════════════════════════════════════════════════════════════════════════
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
