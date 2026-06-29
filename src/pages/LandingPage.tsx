@@ -315,6 +315,14 @@ const LandingPage = () => {
                 required 
                 className="bg-white text-blue-900 border-0 placeholder:text-blue-400 h-11" 
               />
+
+              <Textarea
+  placeholder="Mensaje"
+  value={form.mensaje}
+  onChange={(e) => setForm({ ...form, mensaje: e.target.value })}
+  required
+  className="bg-white text-blue-900 border-0 placeholder:text-blue-400 min-h-[100px]"
+/>
               <button type="submit" className="w-full sm:w-auto inline-flex items-center justify-center h-11 px-8 rounded-md text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-all duration-300 shadow-md">
                 Enviar mensaje
               </button>
