@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { apiFetch } from "@/lib/apiClient"; 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,9 +20,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-// ---------------------------------------------------------------------------
+
 // Props
-// ---------------------------------------------------------------------------
+
 interface ModalNuevaSolicitudProps {
   /** Se llama cuando el POST fue exitoso, para que el padre recargue su tabla */
   onSuccess?: () => void;
@@ -57,11 +58,11 @@ export default function ModalNuevaSolicitud({
   triggerSize      = "default",
   triggerClassName = "gap-2",
 }: ModalNuevaSolicitudProps) {
-  const [open, setOpen]         = useState(false);
-  const [form, setForm]         = useState(formVacio);
+  const [open, setOpen]           = useState(false);
+  const [form, setForm]           = useState(formVacio);
   const [idTipoDoc, setIdTipoDoc] = useState(1);
-  const [cargando, setCargando] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [cargando, setCargando]   = useState(false);
+  const [errorMsg, setErrorMsg]   = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleChange = (campo: keyof typeof formVacio, valor: string) => {
@@ -82,22 +83,16 @@ export default function ModalNuevaSolicitud({
     const limpio = numero.trim();
     if (!limpio) return "El número de documento no puede estar vacío.";
     if (tipo === 1) {
-      // DNI: exactamente 8 dígitos numéricos
       if (!/^\d{8}$/.test(limpio)) return "El DNI debe tener exactamente 8 dígitos numéricos.";
     } else if (tipo === 2) {
-      // CE: 9 a 12 caracteres alfanuméricos
       if (!/^[a-zA-Z0-9]{9,12}$/.test(limpio)) return "El Carné de Extranjería debe tener entre 9 y 12 caracteres alfanuméricos.";
     } else if (tipo === 3) {
-      // PAS: alfanumérico (sin restricción de longitud fija)
       if (!/^[a-zA-Z0-9]{6,20}$/.test(limpio)) return "El Pasaporte debe ser alfanumérico (6–20 caracteres).";
     }
     return null;
   };
 
   // ── Validación de Nombres y Apellidos ─────────────────────────────────────
-  // Reglas: solo letras y espacios (con tildes y ñ), entre 2 y 50 caracteres,
-  // y cada palabra debe iniciar con mayúscula seguida de minúsculas
-  // (ej. "Juan Carlos" es válido; "juan carlos" o "JUAN CARLOS" no lo son).
   const validarNombreOApellido = (valor: string, etiqueta: string): string | null => {
     const limpio = valor.trim();
     if (!limpio) return `${etiqueta} no puede estar vacío.`;
@@ -105,26 +100,21 @@ export default function ModalNuevaSolicitud({
     if (limpio.length > 50) return `${etiqueta} no puede superar los 50 caracteres.`;
     if (!REGEX_NOMBRE.test(limpio)) return `${etiqueta} solo puede contener letras y espacios, sin números ni símbolos.`;
 
-    // Cada palabra (separada por espacios) debe iniciar con mayúscula
     const palabras = limpio.split(/\s+/);
     const todasConMayuscula = palabras.every((palabra) => /^[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]*$/.test(palabra));
     if (!todasConMayuscula) {
       return `${etiqueta}: cada palabra debe iniciar con mayúscula (ej. "Juan Carlos").`;
     }
-
     return null;
   };
 
-  // Mientras el usuario escribe: solo bloquea números y símbolos,
-  // pero NO fuerza mayúsculas en cada tecla (eso sería molesto de escribir).
+  // Mientras el usuario escribe: solo bloquea números y símbolos
   const handleChangeSoloLetras = (campo: "nombres" | "apellidos", valor: string) => {
     const filtrado = valor.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]/g, "");
     setForm((prev) => ({ ...prev, [campo]: filtrado }));
   };
 
-  // Al salir del campo (onBlur), capitaliza automáticamente cada palabra,
-  // para ayudar al usuario a cumplir la regla sin que tenga que pensarlo
-  // (ej. si escribió "juan carlos", lo convierte a "Juan Carlos").
+  // Al salir del campo capitaliza automáticamente cada palabra
   const capitalizarPalabras = (campo: "nombres" | "apellidos") => {
     setForm((prev) => {
       const valor = prev[campo].trim();
@@ -141,36 +131,25 @@ export default function ModalNuevaSolicitud({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validar Nombres y Apellidos antes de cualquier otra cosa
+    // 1. Validar nombres
     const errorNombres = validarNombreOApellido(form.nombres, "Nombres");
-    if (errorNombres) {
-      setErrorMsg(errorNombres);
-      return;
-    }
-    const errorApellidos = validarNombreOApellido(form.apellidos, "Apellidos");
-    if (errorApellidos) {
-      setErrorMsg(errorApellidos);
-      return;
-    }
+    if (errorNombres) { setErrorMsg(errorNombres); return; }
 
-    // Validar documento antes de llamar al backend
+    // 2. Validar apellidos
+    const errorApellidos = validarNombreOApellido(form.apellidos, "Apellidos");
+    if (errorApellidos) { setErrorMsg(errorApellidos); return; }
+
+    // 3. Validar documento
     const errorDoc = validarDocumento(form.dni, idTipoDoc);
-    if (errorDoc) {
-      setErrorMsg(errorDoc);
-      return;
-    }
+    if (errorDoc) { setErrorMsg(errorDoc); return; }
 
     setCargando(true);
     setErrorMsg(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/solicitudes/crear", {
+      
+      const res = await apiFetch("/api/solicitudes/crear", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({
           id_tipo_doc:   idTipoDoc,
           dni:           form.dni.trim().toUpperCase(),
