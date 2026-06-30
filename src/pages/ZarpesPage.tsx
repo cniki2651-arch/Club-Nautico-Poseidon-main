@@ -160,6 +160,31 @@ export default function ZarpesPage() {
     }
   };
 
+  // ── Validaciones de Tipeo en Tiempo Real ──────────────────────────────────
+  const handleDestinoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    const regex = /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ ]*$/;
+    if (valor === "" || regex.test(valor)) {
+      setDestino(valor);
+    }
+  };
+
+  const handleTempNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    const regex = /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ ]*$/;
+    if (valor === "" || regex.test(valor)) {
+      setTempNombre(valor);
+    }
+  };
+
+  const handleTempDocChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value.toUpperCase();
+    const regex = /^[A-Z0-9]+$/;
+    if (valor === "" || regex.test(valor)) {
+      setTempDoc(valor);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!puedeZarpar) return;
@@ -298,9 +323,9 @@ export default function ZarpesPage() {
               {selectedSocio && esMoroso && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Zarpe Bloqueado</AlertTitle>
+                  <AlertTitle>Socio Bloqueado</AlertTitle>
                   <AlertDescription>
-                    {socioData?.nombres || socioData?.nombre} mantiene deuda pendiente. No se puede autorizar el zarpe hasta regularizar su situación financiera.
+                    El socio mantiene deudas activas
                   </AlertDescription>
                 </Alert>
               )}
@@ -385,7 +410,7 @@ export default function ZarpesPage() {
 
               <div className="space-y-1.5">
                 <Label>Destino</Label>
-                <Input placeholder="Ej: Islas Palomino" value={destino} onChange={(e) => setDestino(e.target.value)} required />
+                <Input placeholder="Ej: Islas Palomino" value={destino} onChange={handleDestinoChange} required />
               </div>
 
               {/* Sección de Pasajeros */}
@@ -397,7 +422,7 @@ export default function ZarpesPage() {
                   <Input
                     placeholder="Nombre Completo"
                     value={tempNombre}
-                    onChange={(e) => setTempNombre(e.target.value)}
+                    onChange={handleTempNombreChange}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -413,7 +438,7 @@ export default function ZarpesPage() {
                   <Input
                     placeholder="DNI / CE / PAS"
                     value={tempDoc}
-                    onChange={(e) => setTempDoc(e.target.value)}
+                    onChange={handleTempDocChange}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -476,7 +501,7 @@ export default function ZarpesPage() {
                 <Button type="button" variant="outline" onClick={() => { setOpen(false); resetForm(); }}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={!puedeZarpar}>
+                <Button type="submit" disabled={!puedeZarpar || esMoroso}>
                   {esMoroso ? "Bloqueado" : "Registrar Zarpe"}
                 </Button>
               </div>
