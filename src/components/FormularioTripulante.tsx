@@ -41,10 +41,10 @@ export default function FormularioTripulante() {
 
   // Estados
   const [tripulantes, setTripulantes] = useState<TripulanteAPI[]>([]);
-  const [cargando, setCargando]       = useState(true);
-  const [enviando, setEnviando]       = useState(false);
-  const [form, setForm]               = useState(formVacio);
-  const [idTipoDoc, setIdTipoDoc]     = useState(1);
+  const [cargando, setCargando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [form, setForm] = useState(formVacio);
+  const [idTipoDoc, setIdTipoDoc] = useState(1);
 
   // ── Fetch Tripulantes ─────────────────────────────────────────────────────
   const fetchTripulantes = async () => {
@@ -69,11 +69,82 @@ export default function FormularioTripulante() {
     fetchTripulantes();
   }, []);
 
+  // ── Manejadores con Validación en Tiempo Real ─────────────────────────────
+  const handleNombresChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    const regex = /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ ]*$/;
+    if (valor === "" || regex.test(valor)) {
+      setForm((prev) => ({ ...prev, nombres: valor }));
+    }
+  };
+
+  const handleApellidosChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    const regex = /^[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ ]*$/;
+    if (valor === "" || regex.test(valor)) {
+      setForm((prev) => ({ ...prev, apellidos: valor }));
+    }
+  };
+
+  const handleTipoDocChange = (v: string) => {
+    setIdTipoDoc(Number(v));
+    setForm((prev) => ({ ...prev, dni: "" }));
+  };
+
+  const handleDniChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    if (valor === "") {
+      setForm((prev) => ({ ...prev, dni: "" }));
+      return;
+    }
+
+    if (idTipoDoc === 1) {
+      // DNI: solo números, máximo 8 caracteres
+      if (/^\d+$/.test(valor) && valor.length <= 8) {
+        setForm((prev) => ({ ...prev, dni: valor }));
+      }
+    } else if (idTipoDoc === 2) {
+      // CE: solo números, máximo 9 caracteres
+      if (/^\d+$/.test(valor) && valor.length <= 9) {
+        setForm((prev) => ({ ...prev, dni: valor }));
+      }
+    } else if (idTipoDoc === 3) {
+      // PAS: alfanumérico, sin espacios ni caracteres especiales, máximo 12 caracteres, letras en mayúsculas
+      const valorUpper = valor.toUpperCase();
+      if (/^[A-Z0-9]+$/.test(valorUpper) && valorUpper.length <= 12) {
+        setForm((prev) => ({ ...prev, dni: valorUpper }));
+      }
+    }
+  };
+
+  const handleRolChange = (v: string) => {
+    setForm((prev) => ({
+      ...prev,
+      rol: v,
+      licencia: v === "Personal de Servicio" ? "" : prev.licencia,
+    }));
+  };
+
+  const handleLicenciaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value.toUpperCase();
+    const regex = /^[A-Z0-9-]+$/;
+    if (valor === "" || regex.test(valor)) {
+      setForm((prev) => ({ ...prev, licencia: valor }));
+    }
+  };
+
   // ── Registrar Tripulante ──────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nombres.trim() || !form.apellidos.trim() || !form.dni.trim() || !form.rol.trim()) {
       toast({ title: "Error", description: "Completa los campos obligatorios.", variant: "destructive" });
+      return;
+    }
+
+    // Validar licencia obligatoria para ciertos roles (Capitán, Patrón de Yate, Marinero, Motorista)
+    const rolesConLicenciaRequerida = ["Capitán", "Patrón de Yate", "Marinero", "Motorista"];
+    if (rolesConLicenciaRequerida.includes(form.rol) && !form.licencia.trim()) {
+      toast({ title: "Error", description: "La licencia es obligatoria para este rol.", variant: "destructive" });
       return;
     }
 
@@ -124,17 +195,17 @@ export default function FormularioTripulante() {
           <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
             <div className="space-y-1.5 lg:col-span-2">
               <Label>Nombres *</Label>
-              <Input placeholder="Ej: Carlos" value={form.nombres} onChange={(e) => setForm({ ...form, nombres: e.target.value })} required />
+              <Input placeholder="Ej: Carlos" value={form.nombres} onChange={handleNombresChange} required />
             </div>
             <div className="space-y-1.5 lg:col-span-2">
               <Label>Apellidos *</Label>
-              <Input placeholder="Ej: Mendoza" value={form.apellidos} onChange={(e) => setForm({ ...form, apellidos: e.target.value })} required />
+              <Input placeholder="Ej: Mendoza" value={form.apellidos} onChange={handleApellidosChange} required />
             </div>
 
             {/* Tipo de documento */}
             <div className="space-y-1.5">
               <Label>Tipo de Doc.</Label>
-              <Select value={String(idTipoDoc)} onValueChange={(v) => setIdTipoDoc(Number(v))}>
+              <Select value={String(idTipoDoc)} onValueChange={handleTipoDocChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
@@ -153,7 +224,7 @@ export default function FormularioTripulante() {
                 type="text"
                 placeholder={idTipoDoc === 1 ? "Ej: 12345678" : idTipoDoc === 2 ? "Ej: 000123456" : "Ej: AB123456"}
                 value={form.dni}
-                onChange={(e) => setForm({ ...form, dni: e.target.value.toUpperCase() })}
+                onChange={handleDniChange}
                 autoComplete="off"
                 spellCheck={false}
                 required
@@ -163,7 +234,7 @@ export default function FormularioTripulante() {
             {/* Rol */}
             <div className="space-y-1.5">
               <Label>Rol *</Label>
-              <Select value={form.rol} onValueChange={(v) => setForm({ ...form, rol: v })}>
+              <Select value={form.rol} onValueChange={handleRolChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar rol" />
                 </SelectTrigger>
@@ -175,10 +246,14 @@ export default function FormularioTripulante() {
               </Select>
             </div>
 
-            <div className="space-y-1.5 lg:col-span-2">
-              <Label>Licencia (Opcional)</Label>
-              <Input placeholder="N° Carnet (Si aplica)" value={form.licencia} onChange={(e) => setForm({ ...form, licencia: e.target.value })} />
-            </div>
+            {form.rol !== "Personal de Servicio" && (
+              <div className="space-y-1.5 lg:col-span-2">
+                <Label>
+                  {["Capitán", "Patrón de Yate", "Marinero", "Motorista"].includes(form.rol) ? "Licencia *" : "Licencia *"}
+                </Label>
+                <Input placeholder="N° Carnet (Si aplica)" value={form.licencia} onChange={handleLicenciaChange} />
+              </div>
+            )}
             <div className="lg:col-span-4 flex justify-end">
               <Button type="submit" disabled={enviando || !form.rol} className="gap-2 bg-blue-900 text-white w-full sm:w-auto">
                 <ShieldCheck className="h-4 w-4" />
