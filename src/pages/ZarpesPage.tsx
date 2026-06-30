@@ -44,6 +44,9 @@ export default function ZarpesPage() {
   const [tempNombre, setTempNombre] = useState("");
   const [tempDoc, setTempDoc] = useState("");
 
+  const [esMoroso, setEsMoroso] = useState(false);
+  const [validandoSocio, setValidandoSocio] = useState(false);
+
   // Estado para el documento de zarpe a imprimir
   const [zarpeParaImprimir, setZarpeParaImprimir] = useState<any>(null);
   const [loadingPrint, setLoadingPrint] = useState<number | string | null>(null);
@@ -99,6 +102,53 @@ export default function ZarpesPage() {
     fetchData();
   }, []);
 
+  // useEffect para consultar la deudad del socio en tiempo real al backend
+  useEffect(() => {
+    if (!selectedSocio) {
+      setEsMoroso(false);
+      setValidandoSocio(false);
+      return;
+    }
+
+    const validarDeudaSocio = async () => {
+      setValidandoSocio(true);
+      try {
+        const token = localStorage.getItem("accessToken");
+        const res = await fetch(`https://api-poseidon.onrender.com/api/facturacion/deuda/${selectedSocio}`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // Si la respuesta indica que tiene deudas (deudas_vencidas > 0, deuda > 0 o total_deuda > 0)
+          const tieneDeuda = 
+            (data.deudas_vencidas !== undefined && data.deudas_vencidas > 0) || 
+            (data.total_deuda !== undefined && data.total_deuda > 0) ||
+            (data.deuda !== undefined && data.deuda > 0) ||
+            data.esMoroso === true ||
+            data.estado === "Moroso";
+          setEsMoroso(tieneDeuda);
+        } else {
+          // Fallback local en caso de que el endpoint no esté disponible
+          const socioLocal = socios.find(s => String(s.id_socio || s.id) === String(selectedSocio));
+          setEsMoroso(socioLocal?.estado === "Moroso");
+        }
+      } catch (error) {
+        console.error("Error validando deuda de socio:", error);
+        // Fallback local
+        const socioLocal = socios.find(s => String(s.id_socio || s.id) === String(selectedSocio));
+        setEsMoroso(socioLocal?.estado === "Moroso");
+      } finally {
+        setValidandoSocio(false);
+      }
+    };
+
+    validarDeudaSocio();
+  }, [selectedSocio, socios]);
+
   const resetForm = () => {
     setSelectedSocio("");
     setSelectedEmb("");
@@ -111,6 +161,8 @@ export default function ZarpesPage() {
     setPasajeros([]);
     setTempNombre("");
     setTempDoc("");
+    setEsMoroso(false);
+    setValidandoSocio(false);
   };
 
   const aprobarZarpe = async (id: number | string) => {
@@ -223,7 +275,6 @@ export default function ZarpesPage() {
   };
 
   const socioData = socios.find(s => String(s.id_socio) === String(selectedSocio) || String(s.id) === String(selectedSocio));
-  const esMoroso = socioData?.estado === "Moroso";
   const puedeZarpar = selectedSocio && selectedEmb && selectedTripulante && !esMoroso;
 
   // Embarcaciones validadas que pertenecen al socio seleccionado
@@ -317,25 +368,30 @@ export default function ZarpesPage() {
                     })}
                   </SelectContent>
                 </Select>
+                {validandoSocio && (
+                  <p className="text-xs text-muted-foreground animate-pulse mt-1">
+                    Verificando estado financiero...
+                  </p>
+                )}
               </div>
 
               {/* Alert de estado financiero */}
-              {selectedSocio && esMoroso && (
+              {selectedSocio && !validandoSocio && esMoroso && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Socio Bloqueado</AlertTitle>
                   <AlertDescription>
-                    El socio mantiene deudas activas
+                    El socio mantiene deudas activas.
                   </AlertDescription>
                 </Alert>
               )}
 
-              {selectedSocio && !esMoroso && (
+              {selectedSocio && !validandoSocio && !esMoroso && (
                 <Alert className="border-green-200 bg-green-50">
                   <CheckCircle className="h-4 w-4 text-green-600" />
                   <AlertTitle className="text-green-800">Socio habilitado</AlertTitle>
                   <AlertDescription className="text-green-700">
-                    {socioData?.nombres || socioData?.nombre} está al día y puede zarpar.
+                    El socio está al día y puede zarpar.
                   </AlertDescription>
                 </Alert>
               )}
@@ -501,7 +557,7 @@ export default function ZarpesPage() {
                 <Button type="button" variant="outline" onClick={() => { setOpen(false); resetForm(); }}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={!puedeZarpar || esMoroso}>
+                <Button type="submit" disabled={validandoSocio || esMoroso || !puedeZarpar}>
                   {esMoroso ? "Bloqueado" : "Registrar Zarpe"}
                 </Button>
               </div>
