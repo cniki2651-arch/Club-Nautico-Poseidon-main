@@ -16,20 +16,20 @@ import FormularioTripulante from "@/components/FormularioTripulante";
 // Tipos
 // ---------------------------------------------------------------------------
 interface EmbarcacionAPI {
-  id_embarcacion:   number;
-  id_socio:         number;
-  nombres?:         string;
-  apellidos?:       string;
-  matricula:        string;
-  nombre_nave:      string;
-  tipo:             string;
-  eslora:           number | string;
+  id_embarcacion: number;
+  id_socio: number;
+  nombres?: string;
+  apellidos?: string;
+  matricula: string;
+  nombre_nave: string;
+  tipo: string;
+  eslora: number | string;
   estado_capitania: string;
 }
 
 interface SocioSimple {
   id_socio: number;
-  nombres:  string;
+  nombres: string;
   apellidos: string;
 }
 
@@ -53,19 +53,19 @@ function CapitaniaBadge({ estado }: { estado: string }) {
 
 function radaClasses(estado: string) {
   switch (estado) {
-    case "Ocupado":       return "bg-blue-900 border-blue-700 text-white cursor-pointer hover:bg-blue-800 transition-colors";
-    case "Disponible":    return "bg-teal-50 border-teal-300 text-teal-800 cursor-pointer hover:bg-teal-100 transition-colors";
+    case "Ocupado": return "bg-blue-900 border-blue-700 text-white cursor-pointer hover:bg-blue-800 transition-colors";
+    case "Disponible": return "bg-teal-50 border-teal-300 text-teal-800 cursor-pointer hover:bg-teal-100 transition-colors";
     case "Mantenimiento": return "bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-60";
-    default:              return "bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-60";
+    default: return "bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed opacity-60";
   }
 }
 
 const formVacio = {
-  id_socio:    "",
-  matricula:   "",
+  id_socio: "",
+  matricula: "",
   nombre_nave: "",
-  tipo:        "",
-  eslora:      "",
+  tipo: "",
+  eslora: "",
 };
 
 // ---------------------------------------------------------------------------
@@ -75,20 +75,20 @@ export default function EmbarcacionesPage() {
   const { toast } = useToast();
 
   // ── Estados ───────────────────────────────────────────────────────────────
-  const [embarcaciones, setEmbarcaciones]     = useState<EmbarcacionAPI[]>([]);
-  const [radas, setRadas]                     = useState<RadaAPI[]>([]);
-  const [socios, setSocios]                   = useState<SocioSimple[]>([]);
-  
-  const [cargandoFlota, setCargandoFlota]     = useState(true);
-  const [errorFlota, setErrorFlota]           = useState<string | null>(null);
-  
-  const [openNew, setOpenNew]                 = useState(false);
-  const [form, setForm]                       = useState(formVacio);
-  const [enviando, setEnviando]               = useState(false);
-  const [errorForm, setErrorForm]             = useState<string | null>(null);
+  const [embarcaciones, setEmbarcaciones] = useState<EmbarcacionAPI[]>([]);
+  const [radas, setRadas] = useState<RadaAPI[]>([]);
+  const [socios, setSocios] = useState<SocioSimple[]>([]);
+
+  const [cargandoFlota, setCargandoFlota] = useState(true);
+  const [errorFlota, setErrorFlota] = useState<string | null>(null);
+
+  const [openNew, setOpenNew] = useState(false);
+  const [form, setForm] = useState(formVacio);
+  const [enviando, setEnviando] = useState(false);
+  const [errorForm, setErrorForm] = useState<string | null>(null);
 
   // Modal de Radas
-  const [radaDialog, setRadaDialog]           = useState<{ radaId: number; modo: "asignar" | "liberar" } | null>(null);
+  const [radaDialog, setRadaDialog] = useState<{ radaId: number; modo: "asignar" | "liberar" } | null>(null);
   const [embSeleccionada, setEmbSeleccionada] = useState("");
 
   // Embarcaciones disponibles para asignar (Validadas y que NO estén ya en una rada)
@@ -147,6 +147,31 @@ export default function EmbarcacionesPage() {
     fetchSocios();
   }, []);
 
+  // ── Validaciones en Tiempo Real ───────────────────────────────────────────
+  const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    const regexNombre = /^[a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]+[a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ ]*$/;
+    if (valor === "" || regexNombre.test(valor)) {
+      setForm((prev) => ({ ...prev, nombre_nave: valor }));
+    }
+  };
+
+  const handleEsloraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value;
+    const regexEslora = /^\d*\.?\d*$/;
+    if (valor === "" || regexEslora.test(valor)) {
+      setForm((prev) => ({ ...prev, eslora: valor }));
+    }
+  };
+
+  const handleMatriculaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valor = e.target.value.toUpperCase();
+    const regexMatricula = /^[A-Z0-9-]+$/;
+    if (valor === "" || regexMatricula.test(valor)) {
+      setForm((prev) => ({ ...prev, matricula: valor }));
+    }
+  };
+
   // ── CRUD Flota ────────────────────────────────────────────────────────────
   const handleRegistrar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,11 +184,11 @@ export default function EmbarcacionesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
-          id_socio:    Number(form.id_socio),
-          matricula:   form.matricula,
+          id_socio: Number(form.id_socio),
+          matricula: form.matricula,
           nombre_nave: form.nombre_nave,
-          tipo:        form.tipo,
-          eslora:      parseFloat(form.eslora) || form.eslora,
+          tipo: form.tipo,
+          eslora: parseFloat(form.eslora) || form.eslora,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -287,11 +312,11 @@ export default function EmbarcacionesPage() {
                   <form onSubmit={handleRegistrar} className="space-y-4 pt-2">
                     <div className="space-y-1.5">
                       <Label htmlFor="emb-nombre">Nombre de la nave</Label>
-                      <Input id="emb-nombre" placeholder="Ej: Neptuno II" value={form.nombre_nave} onChange={(e) => setForm({ ...form, nombre_nave: e.target.value })} required />
+                      <Input id="emb-nombre" placeholder="Ej: Neptuno II" value={form.nombre_nave} onChange={handleNombreChange} required />
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="emb-matricula">Matrícula</Label>
-                      <Input id="emb-matricula" placeholder="Ej: CO-59834-RE" value={form.matricula} onChange={(e) => setForm({ ...form, matricula: e.target.value.toUpperCase() })} required />
+                      <Input id="emb-matricula" placeholder="Ej: CO-59834-RE" value={form.matricula} onChange={handleMatriculaChange} required />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
@@ -309,7 +334,7 @@ export default function EmbarcacionesPage() {
                       </div>
                       <div className="space-y-1.5">
                         <Label htmlFor="emb-eslora">Eslora (m)</Label>
-                        <Input id="emb-eslora" placeholder="Ej: 12.5" value={form.eslora} onChange={(e) => setForm({ ...form, eslora: e.target.value })} required />
+                        <Input id="emb-eslora" placeholder="Ej: 12.5" value={form.eslora} onChange={handleEsloraChange} required />
                       </div>
                     </div>
                     <div className="space-y-1.5">
