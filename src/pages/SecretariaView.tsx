@@ -14,6 +14,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
 import ModalNuevaSolicitud from "@/components/ModalNuevaSolicitud";
+import { apiFetch } from "@/lib/apiClient";
 
 interface SolicitudAPI {
   id_solicitud: number;
@@ -110,13 +111,7 @@ export default function SecretariaView() {
   const fetchPreciosServicios = async () => {
     setCargandoPrecios(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/consumos/precios`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/consumos/precios");
       if (!res.ok) return;
       const data: { servicio: string; monto: number }[] = await res.json();
       const mapa: Record<string, number> = {};
@@ -140,16 +135,7 @@ export default function SecretariaView() {
     setSocioEncontrado(null);
     setErrorBusquedaSocio(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/socios/buscar?tipo_doc=${tipoDoc}&numero=${numero}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const res = await apiFetch(`/api/socios/buscar?tipo_doc=${tipoDoc}&numero=${numero}`);
       const data = await res.json();
       if (!res.ok) {
         setErrorBusquedaSocio(data.mensaje || "No se encontró un socio con ese documento.");
@@ -166,13 +152,7 @@ export default function SecretariaView() {
   // CONSULTA AL BACKEND: MÉTRICAS 
   const fetchMetricas = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/dashboard/secretaria`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/dashboard/secretaria");
       if (!res.ok) return;
       const data = await res.json();
       setMetricas({
@@ -188,13 +168,7 @@ export default function SecretariaView() {
     setCargandoLista(true);
     setErrorLista(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/solicitudes`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/solicitudes");
       if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar las solicitudes.`);
       const data: SolicitudAPI[] = await res.json();
       setSolicitudes(data);
@@ -276,17 +250,12 @@ export default function SecretariaView() {
 
     setGuardandoServicio(true);
     try {
-      const token = localStorage.getItem("accessToken");
       const descripcionFinal = esServicioInstructor
         ? `Instructor: ${nombreInstructor}${descripcionServicio ? " — " + descripcionServicio : ""}`
         : descripcionServicio || `Cargo por servicio de ${categoriaServicio}`;
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com"}/api/consumos`, {
+      const res = await apiFetch("/api/consumos", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify({
           tipo_doc: tipoDocServicio,
           dni_socio: dniSocioServicio,
