@@ -58,6 +58,14 @@ interface ConsumoPlano {
 
 const OPCIONES_POR_PAGINA = [5, 10, 25, 50];
 
+// ── Configuración de validación por tipo de documento (Registrar Servicio) ─
+const LIMITE_DOC_SERVICIO: Record<string, number> = { DNI: 8, CE: 12, PAS: 9 };
+const REGEX_DOC_SERVICIO: Record<string, RegExp> = {
+  DNI: /^[0-9]*$/,
+  CE: /^[a-zA-Z0-9]*$/,
+  PAS: /^[a-zA-Z0-9]*$/,
+};
+
 export default function SecretariaView() {
   
   const [busqueda, setBusqueda] = useState("");
@@ -237,6 +245,36 @@ export default function SecretariaView() {
     const fin = Math.min(totalPaginas, inicio + 4);
     for (let i = inicio; i <= fin; i++) paginas.push(i);
     return paginas;
+  };
+
+  // Filtra caracteres no permitidos mientras se escribe, según el tipo de doc actual
+  const handleChangeDniServicio = (valor: string) => {
+    const mayus = valor.toUpperCase();
+    const regex = REGEX_DOC_SERVICIO[tipoDocServicio] ?? /^[a-zA-Z0-9]*$/;
+    const limite = LIMITE_DOC_SERVICIO[tipoDocServicio] ?? 12;
+    if ((mayus === "" || regex.test(mayus)) && mayus.length <= limite) {
+      setDniSocioServicio(mayus);
+      setSocioEncontrado(null);
+      setErrorBusquedaSocio(null);
+    }
+  };
+
+  // Al cambiar el tipo de documento, limpia/recorta el valor actual si ya
+  // no es compatible con el nuevo tipo, y relanza la búsqueda del socio
+  const handleChangeTipoDocServicio = (valor: string) => {
+    setTipoDocServicio(valor);
+    const limite = LIMITE_DOC_SERVICIO[valor] ?? 12;
+    let valorLimpio = dniSocioServicio;
+    setDniSocioServicio((prev) => {
+      valorLimpio = valor === "DNI"
+        ? prev.replace(/\D/g, "")
+        : prev.replace(/[^a-zA-Z0-9]/g, "");
+      valorLimpio = valorLimpio.slice(0, limite);
+      return valorLimpio;
+    });
+    setSocioEncontrado(null);
+    setErrorBusquedaSocio(null);
+    if (dniSocioServicio.trim()) buscarSocioPorDocumento(valor, dniSocioServicio);
   };
 
   //  ENVÍO AL BACKEND CARGAR CONSUMO 
@@ -656,10 +694,7 @@ export default function SecretariaView() {
                 <select
                   className="flex h-10 w-24 shrink-0 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 text-sm text-slate-800 dark:text-slate-200"
                   value={tipoDocServicio}
-                  onChange={(e) => {
-                    setTipoDocServicio(e.target.value);
-                    if (dniSocioServicio.trim()) buscarSocioPorDocumento(e.target.value, dniSocioServicio);
-                  }}
+                  onChange={(e) => handleChangeTipoDocServicio(e.target.value)}
                 >
                   <option value="DNI">DNI</option>
                   <option value="CE">CE</option>
@@ -667,14 +702,14 @@ export default function SecretariaView() {
                 </select>
                 <Input
                   type="text"
-                  placeholder={tipoDocServicio === "DNI" ? "Ej. 60988743" : "Ej. AB123456"}
-                  maxLength={tipoDocServicio === "DNI" ? 8 : 12}
+                  placeholder={
+                    tipoDocServicio === "DNI" ? "Ej. 60988743" :
+                    tipoDocServicio === "PAS" ? "Ej. AB1234567" :
+                    "Ej. 000123456"
+                  }
+                  maxLength={LIMITE_DOC_SERVICIO[tipoDocServicio]}
                   value={dniSocioServicio}
-                  onChange={(e) => {
-                    setDniSocioServicio(e.target.value);
-                    setSocioEncontrado(null);
-                    setErrorBusquedaSocio(null);
-                  }}
+                  onChange={(e) => handleChangeDniServicio(e.target.value)}
                   onBlur={() => buscarSocioPorDocumento(tipoDocServicio, dniSocioServicio)}
                   required
                   className="rounded-lg bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"

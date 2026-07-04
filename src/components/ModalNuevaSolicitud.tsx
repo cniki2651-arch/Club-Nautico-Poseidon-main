@@ -49,6 +49,15 @@ const formVacio = {
 // Solo letras (con tildes y ñ) y espacios; nada de números ni símbolos.
 const REGEX_NOMBRE = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$/;
 
+// ── Configuración de validación por tipo de documento ─────────────────────
+// idTipoDoc → 1: DNI, 2: CE, 3: PAS
+const LIMITE_DOC: Record<number, number> = { 1: 8, 2: 12, 3: 9 };
+const REGEX_DOC: Record<number, RegExp> = {
+  1: /^[0-9]*$/,        // DNI: solo números
+  2: /^[a-zA-Z0-9]*$/,  // CE: solo letras y números (sin símbolos/espacios)
+  3: /^[a-zA-Z0-9]*$/,  // PAS: solo letras y números (sin símbolos/espacios)
+};
+
 // ---------------------------------------------------------------------------
 // Componente
 // ---------------------------------------------------------------------------
@@ -87,9 +96,34 @@ export default function ModalNuevaSolicitud({
     } else if (tipo === 2) {
       if (!/^[a-zA-Z0-9]{9,12}$/.test(limpio)) return "El Carné de Extranjería debe tener entre 9 y 12 caracteres alfanuméricos.";
     } else if (tipo === 3) {
-      if (!/^[a-zA-Z0-9]{6,20}$/.test(limpio)) return "El Pasaporte debe ser alfanumérico (6–20 caracteres).";
+      if (!/^[a-zA-Z0-9]{9}$/.test(limpio)) return "El Pasaporte debe tener exactamente 9 caracteres alfanuméricos.";
     }
     return null;
+  };
+
+  // Filtra caracteres no permitidos mientras se escribe, según el tipo de doc actual
+  const handleChangeDocumento = (valor: string) => {
+    const mayus = valor.toUpperCase();
+    const regex = REGEX_DOC[idTipoDoc] ?? /^[a-zA-Z0-9]*$/;
+    const limite = LIMITE_DOC[idTipoDoc] ?? 12;
+    if ((mayus === "" || regex.test(mayus)) && mayus.length <= limite) {
+      handleChange("dni", mayus);
+    }
+  };
+
+  // Al cambiar el tipo de documento, limpia/recorta el valor actual si ya
+  // no es compatible con el nuevo tipo (ej. pasar de CE con letras a DNI)
+  const handleChangeTipoDoc = (val: string) => {
+    const nuevoTipo = Number(val);
+    setIdTipoDoc(nuevoTipo);
+    setForm((prev) => {
+      const limite = LIMITE_DOC[nuevoTipo] ?? 12;
+      let valorLimpio = nuevoTipo === 1
+        ? prev.dni.replace(/\D/g, "")             // DNI: descarta todo lo que no sea número
+        : prev.dni.replace(/[^a-zA-Z0-9]/g, "");   // CE/PAS: descarta símbolos/espacios
+      valorLimpio = valorLimpio.slice(0, limite);
+      return { ...prev, dni: valorLimpio };
+    });
   };
 
   // ── Validación de Nombres y Apellidos ─────────────────────────────────────
@@ -233,7 +267,7 @@ export default function ModalNuevaSolicitud({
               <Label htmlFor="sol-tipo-doc">Tipo de Documento</Label>
               <Select
                 value={String(idTipoDoc)}
-                onValueChange={(val) => setIdTipoDoc(Number(val))}
+                onValueChange={handleChangeTipoDoc}
               >
                 <SelectTrigger id="sol-tipo-doc">
                   <SelectValue placeholder="Seleccionar tipo" />
@@ -252,10 +286,11 @@ export default function ModalNuevaSolicitud({
                 placeholder={
                   idTipoDoc === 1 ? "Ej. 12345678" :
                   idTipoDoc === 2 ? "Ej. 000123456" :
-                  "Ej. AB123456"
+                  "Ej. AB1234567"
                 }
                 value={form.dni}
-                onChange={(e) => handleChange("dni", e.target.value.toUpperCase())}
+                onChange={(e) => handleChangeDocumento(e.target.value)}
+                maxLength={LIMITE_DOC[idTipoDoc]}
                 required
                 autoComplete="off"
                 spellCheck={false}
