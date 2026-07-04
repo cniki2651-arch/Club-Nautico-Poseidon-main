@@ -59,11 +59,11 @@ interface ConsumoPlano {
 const OPCIONES_POR_PAGINA = [5, 10, 25, 50];
 
 // ── Configuración de validación por tipo de documento (Registrar Servicio) ─
-const LIMITE_DOC_SERVICIO: Record<string, number> = { DNI: 8, CE: 12, PAS: 9 };
+const LIMITE_DOC_SERVICIO: Record<string, number> = { DNI: 8, CE: 9, PAS: 12 };
 const REGEX_DOC_SERVICIO: Record<string, RegExp> = {
-  DNI: /^[0-9]*$/,
-  CE: /^[a-zA-Z0-9]*$/,
-  PAS: /^[a-zA-Z0-9]*$/,
+  DNI: /^[0-9]*$/,       // solo números
+  CE: /^[0-9]*$/,        // solo números (sin letras)
+  PAS: /^[a-zA-Z0-9]*$/, // alfanumérico
 };
 
 export default function SecretariaView() {
@@ -266,7 +266,7 @@ export default function SecretariaView() {
     const limite = LIMITE_DOC_SERVICIO[valor] ?? 12;
     let valorLimpio = dniSocioServicio;
     setDniSocioServicio((prev) => {
-      valorLimpio = valor === "DNI"
+      valorLimpio = (valor === "DNI" || valor === "CE")
         ? prev.replace(/\D/g, "")
         : prev.replace(/[^a-zA-Z0-9]/g, "");
       valorLimpio = valorLimpio.slice(0, limite);
@@ -704,7 +704,7 @@ export default function SecretariaView() {
                   type="text"
                   placeholder={
                     tipoDocServicio === "DNI" ? "Ej. 60988743" :
-                    tipoDocServicio === "PAS" ? "Ej. AB1234567" :
+                    tipoDocServicio === "PAS" ? "Ej. AB1234567890" :
                     "Ej. 000123456"
                   }
                   maxLength={LIMITE_DOC_SERVICIO[tipoDocServicio]}
