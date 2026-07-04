@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Ship, Anchor, Plus, CheckCircle2 } from "lucide-react";
+import { Ship, Anchor, Plus, CheckCircle2, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,11 @@ export default function EmbarcacionesPage() {
   // Modal de Radas
   const [radaDialog, setRadaDialog] = useState<{ radaId: number; modo: "asignar" | "liberar" } | null>(null);
   const [embSeleccionada, setEmbSeleccionada] = useState("");
+
+  // ── Búsqueda y paginación tabla de Flota ─────────────────────────────────
+  const [busquedaFlota, setBusquedaFlota] = useState("");
+  const [paginaFlota, setPaginaFlota] = useState(1);
+  const [porPaginaFlota, setPorPaginaFlota] = useState(10);
 
   // Embarcaciones disponibles para asignar (Validadas y que NO estén ya en una rada)
   const embSinRada = embarcaciones.filter((e) => {
@@ -273,6 +278,40 @@ export default function EmbarcacionesPage() {
     }
   };
 
+  // ── Filtrado y paginación de la tabla de Flota ───────────────────────────
+  const embarcacionesFiltradas = embarcaciones.filter((e) => {
+    const texto = busquedaFlota.trim().toLowerCase();
+    if (!texto) return true;
+    const propietario = e.nombres ? `${e.nombres} ${e.apellidos}` : `Socio #${e.id_socio}`;
+    const campo = `${e.nombre_nave} ${e.matricula} ${propietario}`.toLowerCase();
+    return campo.includes(texto);
+  });
+
+  const totalFlota = embarcacionesFiltradas.length;
+  const totalPaginasFlota = Math.max(1, Math.ceil(totalFlota / porPaginaFlota));
+  const paginaActualFlota = Math.min(paginaFlota, totalPaginasFlota);
+  const inicioFlota = (paginaActualFlota - 1) * porPaginaFlota;
+  const finFlota = Math.min(inicioFlota + porPaginaFlota, totalFlota);
+  const flotaPaginada = embarcacionesFiltradas.slice(inicioFlota, finFlota);
+
+  const handleBuscarFlota = (valor: string) => {
+    setBusquedaFlota(valor);
+    setPaginaFlota(1);
+  };
+
+  const handleCambiarPorPaginaFlota = (valor: string) => {
+    setPorPaginaFlota(Number(valor));
+    setPaginaFlota(1);
+  };
+
+  const numerosPaginaFlota = Array.from({ length: totalPaginasFlota }, (_, i) => i + 1)
+    .filter((n) => n === 1 || n === totalPaginasFlota || Math.abs(n - paginaActualFlota) <= 1)
+    .reduce<(number | "...")[]>((acc, n, idx, arr) => {
+      if (idx > 0 && (n as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+      acc.push(n);
+      return acc;
+    }, []);
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -297,73 +336,100 @@ export default function EmbarcacionesPage() {
         {/* ── TAB: FLOTA ─────────────────────────────────────────────────── */}
         <TabsContent value="embarcaciones">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Gestión de Flota</CardTitle>
-              <Dialog open={openNew} onOpenChange={(v) => { setOpenNew(v); if (!v) { setForm(formVacio); setErrorForm(null); } }}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="gap-2 bg-blue-900 text-white">
-                    <Plus className="h-4 w-4" /> Nueva Embarcación
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Registrar Embarcación</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleRegistrar} className="space-y-4 pt-2">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="emb-nombre">Nombre de la nave</Label>
-                      <Input id="emb-nombre" placeholder="Ej: Neptuno II" value={form.nombre_nave} onChange={handleNombreChange} required />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="emb-matricula">Matrícula</Label>
-                      <Input id="emb-matricula" placeholder="Ej: CO-59834-RE" value={form.matricula} onChange={handleMatriculaChange} required />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
+            <CardHeader className="flex flex-col gap-3 pb-3">
+              <div className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base">Gestión de Flota</CardTitle>
+                <Dialog open={openNew} onOpenChange={(v) => { setOpenNew(v); if (!v) { setForm(formVacio); setErrorForm(null); } }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="gap-2 bg-blue-900 text-white">
+                      <Plus className="h-4 w-4" /> Nueva Embarcación
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Registrar Embarcación</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleRegistrar} className="space-y-4 pt-2">
                       <div className="space-y-1.5">
-                        <Label htmlFor="emb-tipo">Tipo</Label>
-                        <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
-                          <SelectTrigger id="emb-tipo"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                        <Label htmlFor="emb-nombre">Nombre de la nave</Label>
+                        <Input id="emb-nombre" placeholder="Ej: Neptuno II" value={form.nombre_nave} onChange={handleNombreChange} required />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="emb-matricula">Matrícula</Label>
+                        <Input id="emb-matricula" placeholder="Ej: CO-59834-RE" value={form.matricula} onChange={handleMatriculaChange} required />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="emb-tipo">Tipo</Label>
+                          <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                            <SelectTrigger id="emb-tipo"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Velero">Velero</SelectItem>
+                              <SelectItem value="Lancha">Lancha</SelectItem>
+                              <SelectItem value="Yate">Yate</SelectItem>
+                              <SelectItem value="Catamarán">Catamarán</SelectItem>
+                              <SelectItem value="Bote">Bote</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="emb-eslora">Eslora (m)</Label>
+                          <Input id="emb-eslora" placeholder="Ej: 12.5" value={form.eslora} onChange={handleEsloraChange} required />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="emb-socio">Socio Propietario</Label>
+                        <Select value={form.id_socio} onValueChange={(v) => setForm({ ...form, id_socio: v })}>
+                          <SelectTrigger id="emb-socio"><SelectValue placeholder="Seleccionar socio" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Velero">Velero</SelectItem>
-                            <SelectItem value="Lancha">Lancha</SelectItem>
-                            <SelectItem value="Yate">Yate</SelectItem>
-                            <SelectItem value="Catamarán">Catamarán</SelectItem>
-                            <SelectItem value="Bote">Bote</SelectItem>
+                            {socios.map((s) => (
+                              <SelectItem key={s.id_socio} value={String(s.id_socio)}>
+                                {s.nombres} {s.apellidos}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="emb-eslora">Eslora (m)</Label>
-                        <Input id="emb-eslora" placeholder="Ej: 12.5" value={form.eslora} onChange={handleEsloraChange} required />
+                      {errorForm && (
+                        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3">
+                          <p className="text-sm text-destructive font-medium">{errorForm}</p>
+                        </div>
+                      )}
+                      <div className="flex justify-end gap-2 pt-1">
+                        <Button type="button" variant="outline" onClick={() => setOpenNew(false)} disabled={enviando}>Cancelar</Button>
+                        <Button type="submit" disabled={enviando || !form.tipo} className="bg-blue-900 text-white">
+                          {enviando ? "Registrando..." : "Registrar"}
+                        </Button>
                       </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="emb-socio">Socio Propietario</Label>
-                      <Select value={form.id_socio} onValueChange={(v) => setForm({ ...form, id_socio: v })}>
-                        <SelectTrigger id="emb-socio"><SelectValue placeholder="Seleccionar socio" /></SelectTrigger>
-                        <SelectContent>
-                          {socios.map((s) => (
-                            <SelectItem key={s.id_socio} value={String(s.id_socio)}>
-                              {s.nombres} {s.apellidos}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {errorForm && (
-                      <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3">
-                        <p className="text-sm text-destructive font-medium">{errorForm}</p>
-                      </div>
-                    )}
-                    <div className="flex justify-end gap-2 pt-1">
-                      <Button type="button" variant="outline" onClick={() => setOpenNew(false)} disabled={enviando}>Cancelar</Button>
-                      <Button type="submit" disabled={enviando || !form.tipo} className="bg-blue-900 text-white">
-                        {enviando ? "Registrando..." : "Registrar"}
-                      </Button>
-                    </div>
-                  </form>
-                </DialogContent>
-              </Dialog>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Mostrar</span>
+                  <Select value={String(porPaginaFlota)} onValueChange={handleCambiarPorPaginaFlota}>
+                    <SelectTrigger className="w-[72px] h-8"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span>registros</span>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nombre, matrícula o propietario..."
+                    value={busquedaFlota}
+                    onChange={(e) => handleBuscarFlota(e.target.value)}
+                    className="pl-8 h-8 w-full sm:w-72"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <Table>
@@ -383,10 +449,14 @@ export default function EmbarcacionesPage() {
                     <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">Cargando flota...</TableCell></TableRow>
                   ) : errorFlota ? (
                     <TableRow><TableCell colSpan={7} className="text-center text-destructive py-10">{errorFlota}</TableCell></TableRow>
-                  ) : embarcaciones.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-10">No hay embarcaciones registradas.</TableCell></TableRow>
+                  ) : embarcacionesFiltradas.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                        {busquedaFlota ? "No se encontraron embarcaciones con ese criterio de búsqueda." : "No hay embarcaciones registradas."}
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    embarcaciones.map((e) => (
+                    flotaPaginada.map((e) => (
                       <TableRow key={e.id_embarcacion}>
                         <TableCell className="font-medium">{e.nombre_nave}</TableCell>
                         <TableCell className="text-muted-foreground font-mono">{e.matricula}</TableCell>
@@ -406,6 +476,49 @@ export default function EmbarcacionesPage() {
                   )}
                 </TableBody>
               </Table>
+
+              {totalFlota > 0 && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 text-sm">
+                  <p className="text-muted-foreground">
+                    Mostrando registros del {inicioFlota + 1} al {finFlota} de un total de {totalFlota} registros
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={paginaActualFlota === 1}
+                      onClick={() => setPaginaFlota((p) => Math.max(1, p - 1))}
+                    >
+                      Anterior
+                    </Button>
+                    {numerosPaginaFlota.map((n, idx) =>
+                      n === "..." ? (
+                        <span key={`dots-${idx}`} className="px-2 text-muted-foreground">…</span>
+                      ) : (
+                        <Button
+                          key={n}
+                          variant={n === paginaActualFlota ? "default" : "outline"}
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => setPaginaFlota(n as number)}
+                        >
+                          {n}
+                        </Button>
+                      )
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      disabled={paginaActualFlota === totalPaginasFlota}
+                      onClick={() => setPaginaFlota((p) => Math.min(totalPaginasFlota, p + 1))}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
