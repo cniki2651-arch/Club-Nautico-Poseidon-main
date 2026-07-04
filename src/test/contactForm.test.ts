@@ -4,10 +4,9 @@ import {
   ContactFormData,
 } from '../lib/contactFormValidator';
 
-// =============================================================================
+
 // CP-CN-CONT-01 — Validar formato de correo electrónico
-// Estado: Aprobado
-// =============================================================================
+
 describe('CP-CN-CONT-01 — Validar formato de correo electrónico', () => {
   test('debe devolver false para "correo-invalido"', () => {
     expect(isValidEmail('correo-invalido')).toBe(false);
@@ -34,10 +33,9 @@ describe('CP-CN-CONT-01 — Validar formato de correo electrónico', () => {
   });
 });
 
-// =============================================================================
+
 // CP-CN-CONT-02 (parte 1) — Validación de los datos del formulario
-// Estado: Aprobado (la validación de campos sí funciona correctamente)
-// =============================================================================
+
 describe('CP-CN-CONT-02 — Validar datos del formulario de contacto', () => {
   test('debe retornar valido:true con nombre, correo y mensaje correctos', () => {
     const datos: ContactFormData = {
@@ -105,10 +103,7 @@ describe('CP-CN-CONT-02 — Envío de correo al cliente (INCIDENCIA / Pendiente)
     mensaje: 'Quisiera obtener más información sobre el club.',
   };
 
-  // ---------------------------------------------------------------------
-  // PARTE A — Evidencia objetiva: no existe ningún endpoint/servicio de envío
- 
-  // ---------------------------------------------------------------------
+  
   describe('Evidencia: no existe implementación de envío de correo', () => {
     const fs = require('fs');
     const path = require('path');
