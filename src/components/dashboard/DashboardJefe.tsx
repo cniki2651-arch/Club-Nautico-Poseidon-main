@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
-import { ClipboardCheck, Users, BarChart3, Clock } from "lucide-react";
+import { ClipboardCheck, Users, BarChart3, Clock, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SolicitudAPI {
   id_solicitud:   number;
@@ -13,6 +16,8 @@ interface SolicitudAPI {
   estado:         string;
   fecha_creacion: string;
 }
+
+const OPCIONES_POR_PAGINA = [5, 10, 25, 50];
 
 function estadoBadge(estado: string) {
   switch (estado) {
@@ -29,6 +34,11 @@ export default function DashboardJefe() {
   const [solicitudes, setSolicitudes]     = useState<SolicitudAPI[]>([]);
   const [cargandoLista, setCargandoLista] = useState(true);
   const [errorLista, setErrorLista]       = useState<string | null>(null);
+
+  // ── Búsqueda + paginación ─────────────────────────────────────────────────
+  const [busqueda, setBusqueda]           = useState("");
+  const [paginaActual, setPaginaActual]   = useState(1);
+  const [porPagina, setPorPagina]         = useState(10);
 
   useEffect(() => {
     const fetchSolicitudes = async () => {
@@ -55,6 +65,34 @@ export default function DashboardJefe() {
   }, []);
 
   const pendientes = solicitudes.filter((s) => s.estado === "Pendiente").length;
+
+  // ── Filtrado en tiempo real ───────────────────────────────────────────────
+  const solicitudesFiltradas = solicitudes.filter((s) => {
+    const texto = `${s.nombres} ${s.apellidos} ${s.dni}`.toLowerCase();
+    return texto.includes(busqueda.toLowerCase());
+  });
+
+  // ── Cálculos de paginación ────────────────────────────────────────────────
+  const totalRegistros = solicitudesFiltradas.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalRegistros / porPagina));
+  const indiceInicio = (paginaActual - 1) * porPagina;
+  const indiceFin = Math.min(indiceInicio + porPagina, totalRegistros);
+  const solicitudesPaginadas = solicitudesFiltradas.slice(indiceInicio, indiceFin);
+
+  useEffect(() => { setPaginaActual(1); }, [busqueda, porPagina]);
+
+  const irAPagina = (pagina: number) => {
+    if (pagina < 1 || pagina > totalPaginas) return;
+    setPaginaActual(pagina);
+  };
+
+  const numerosDePagina = () => {
+    const paginas: number[] = [];
+    const inicio = Math.max(1, paginaActual - 2);
+    const fin = Math.min(totalPaginas, inicio + 4);
+    for (let i = inicio; i <= fin; i++) paginas.push(i);
+    return paginas;
+  };
 
   return (
     <div className="space-y-6">
@@ -110,10 +148,40 @@ export default function DashboardJefe() {
       {/* Tabla de solicitudes para aprobación */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            Solicitudes Pendientes de Aprobación
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Solicitudes Pendientes de Aprobación
+            </CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Mostrar</span>
+                <Select
+                  value={String(porPagina)}
+                  onValueChange={(val) => setPorPagina(Number(val))}
+                >
+                  <SelectTrigger className="w-16 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OPCIONES_POR_PAGINA.map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span>registros</span>
+              </div>
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Nombre, apellido o DNI..."
+                  className="pl-8 h-8 text-xs"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -134,12 +202,12 @@ export default function DashboardJefe() {
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-destructive py-10">{errorLista}</TableCell>
                 </TableRow>
-              ) : solicitudes.length === 0 ? (
+              ) : solicitudesPaginadas.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center text-muted-foreground py-10">No hay solicitudes.</TableCell>
                 </TableRow>
               ) : (
-                solicitudes.map((s) => (
+                solicitudesPaginadas.map((s) => (
                   <TableRow key={s.id_solicitud}>
                     <TableCell className="font-medium">{s.nombres} {s.apellidos}</TableCell>
                     <TableCell className="font-medium text-xs text-muted-foreground"><span className="mr-1">{s.tipo_doc_siglas || 'DNI'}</span><span className="text-foreground">{s.dni}</span></TableCell>
@@ -152,6 +220,53 @@ export default function DashboardJefe() {
               )}
             </TableBody>
           </Table>
+
+          {/* ── Barra de paginación ────────────────────────────────────────── */}
+          {!cargandoLista && !errorLista && totalRegistros > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-2 border-t">
+              <p className="text-xs text-muted-foreground">
+                Mostrando registros del <span className="font-semibold">{indiceInicio + 1}</span> al{" "}
+                <span className="font-semibold">{indiceFin}</span> de un total de{" "}
+                <span className="font-semibold">{totalRegistros}</span> registros
+              </p>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-8"
+                  onClick={() => irAPagina(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Anterior
+                </Button>
+
+                {numerosDePagina().map((num) => (
+                  <Button
+                    key={num}
+                    variant={num === paginaActual ? "default" : "outline"}
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => irAPagina(num)}
+                  >
+                    {num}
+                  </Button>
+                ))}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 h-8"
+                  onClick={() => irAPagina(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                >
+                  Siguiente
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
