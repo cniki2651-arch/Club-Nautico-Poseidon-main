@@ -51,11 +51,11 @@ const REGEX_NOMBRE = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü\s]+$/;
 
 // ── Configuración de validación por tipo de documento ─────────────────────
 // idTipoDoc → 1: DNI, 2: CE, 3: PAS
-const LIMITE_DOC: Record<number, number> = { 1: 8, 2: 12, 3: 9 };
+const LIMITE_DOC: Record<number, number> = { 1: 8, 2: 9, 3: 12 };
 const REGEX_DOC: Record<number, RegExp> = {
   1: /^[0-9]*$/,        // DNI: solo números
-  2: /^[a-zA-Z0-9]*$/,  // CE: solo letras y números (sin símbolos/espacios)
-  3: /^[a-zA-Z0-9]*$/,  // PAS: solo letras y números (sin símbolos/espacios)
+  2: /^[0-9]*$/,        // CE: solo números (sin letras ni símbolos/espacios)
+  3: /^[a-zA-Z0-9]*$/,  // PAS: letras y números (sin símbolos/espacios)
 };
 
 // ---------------------------------------------------------------------------
@@ -94,9 +94,9 @@ export default function ModalNuevaSolicitud({
     if (tipo === 1) {
       if (!/^\d{8}$/.test(limpio)) return "El DNI debe tener exactamente 8 dígitos numéricos.";
     } else if (tipo === 2) {
-      if (!/^[a-zA-Z0-9]{9,12}$/.test(limpio)) return "El Carné de Extranjería debe tener entre 9 y 12 caracteres alfanuméricos.";
+      if (!/^\d{1,9}$/.test(limpio)) return "El Carné de Extranjería debe contener solo números (máximo 9 dígitos).";
     } else if (tipo === 3) {
-      if (!/^[a-zA-Z0-9]{9}$/.test(limpio)) return "El Pasaporte debe tener exactamente 9 caracteres alfanuméricos.";
+      if (!/^[a-zA-Z0-9]{1,12}$/.test(limpio)) return "El Pasaporte debe ser alfanumérico (máximo 12 caracteres).";
     }
     return null;
   };
@@ -118,9 +118,9 @@ export default function ModalNuevaSolicitud({
     setIdTipoDoc(nuevoTipo);
     setForm((prev) => {
       const limite = LIMITE_DOC[nuevoTipo] ?? 12;
-      let valorLimpio = nuevoTipo === 1
-        ? prev.dni.replace(/\D/g, "")             // DNI: descarta todo lo que no sea número
-        : prev.dni.replace(/[^a-zA-Z0-9]/g, "");   // CE/PAS: descarta símbolos/espacios
+      let valorLimpio = (nuevoTipo === 1 || nuevoTipo === 2)
+        ? prev.dni.replace(/\D/g, "")             // DNI/CE: descarta todo lo que no sea número
+        : prev.dni.replace(/[^a-zA-Z0-9]/g, "");   // PAS: descarta símbolos/espacios
       valorLimpio = valorLimpio.slice(0, limite);
       return { ...prev, dni: valorLimpio };
     });
@@ -286,7 +286,7 @@ export default function ModalNuevaSolicitud({
                 placeholder={
                   idTipoDoc === 1 ? "Ej. 12345678" :
                   idTipoDoc === 2 ? "Ej. 000123456" :
-                  "Ej. AB1234567"
+                  "Ej. AB1234567890"
                 }
                 value={form.dni}
                 onChange={(e) => handleChangeDocumento(e.target.value)}
