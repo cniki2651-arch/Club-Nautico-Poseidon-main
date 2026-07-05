@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
-  CheckCircle, XCircle, FileText, Lock, UserMinus, ClipboardCheck, LogOut,
-  Search, ChevronLeft, ChevronRight,
+  CheckCircle, XCircle, FileText, ClipboardCheck,
+  ChevronLeft, ChevronRight, Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import TablaRetirosPendientes from "@/components/TablaRetirosPendientes";
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -32,22 +33,6 @@ interface SolicitudAPI {
   estado: string;
   fecha_creacion: string;
 }
-
-interface SolicitudRetiro {
-  id: number;
-  nombre: string;
-  fechaSolicitud: string;
-  deudaPendiente: number;
-  estado: "Pendiente" | "Procesado";
-}
-
-// ---------------------------------------------------------------------------
-// Datos estáticos de retiros (hasta que el backend esté listo)
-// ---------------------------------------------------------------------------
-const retirosIniciales: SolicitudRetiro[] = [
-  { id: 1, nombre: "Roberto Sánchez Vargas", fechaSolicitud: "28-02-2026", deudaPendiente: 0, estado: "Pendiente" },
-  { id: 2, nombre: "Ana Lucía Romero Díaz", fechaSolicitud: "01-03-2026", deudaPendiente: 450, estado: "Pendiente" },
-];
 
 const OPCIONES_POR_PAGINA = [5, 10, 25, 50];
 
@@ -73,8 +58,6 @@ export default function JefeView() {
   const [cargandoLista, setCargandoLista] = useState(true);
   const [errorLista, setErrorLista] = useState<string | null>(null);
 
-  const [retiros, setRetiros] = useState<SolicitudRetiro[]>(retirosIniciales);
-
   // ── Modal de rechazo ──────────────────────────────────────────────────────
   const [rechazoDialog, setRechazoDialog] = useState(false);
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<number | null>(null);
@@ -85,11 +68,6 @@ export default function JefeView() {
   const [busquedaAprob, setBusquedaAprob] = useState("");
   const [paginaAprob, setPaginaAprob] = useState(1);
   const [porPaginaAprob, setPorPaginaAprob] = useState(10);
-
-  // ── Búsqueda + paginación: Solicitudes de Retiro ──────────────────────────
-  const [busquedaRetiro, setBusquedaRetiro] = useState("");
-  const [paginaRetiro, setPaginaRetiro] = useState(1);
-  const [porPaginaRetiro, setPorPaginaRetiro] = useState(10);
 
   // ── Fetch solicitudes pendientes ──────────────────────────────────────────
   const fetchPendientes = async () => {
@@ -181,12 +159,6 @@ export default function JefeView() {
     }
   };
 
-  // ── Dar de baja (retiros — mock por ahora) ────────────────────────────────
-  const handleDarDeBaja = (id: number) => {
-    setRetiros((prev) => prev.map((r) => r.id === id ? { ...r, estado: "Procesado" as const } : r));
-    toast.success("Socio dado de baja exitosamente.");
-  };
-
   // ── Filtrado + paginación: Bandeja de Aprobaciones ────────────────────────
   const pendientesFiltrados = pendientes.filter((s) => {
     const texto = `${s.nombres} ${s.apellidos} ${s.dni}`.toLowerCase();
@@ -209,31 +181,6 @@ export default function JefeView() {
     const paginas: number[] = [];
     const inicio = Math.max(1, paginaAprob - 2);
     const fin = Math.min(totalPagAprob, inicio + 4);
-    for (let i = inicio; i <= fin; i++) paginas.push(i);
-    return paginas;
-  };
-
-  // ── Filtrado + paginación: Solicitudes de Retiro ──────────────────────────
-  const retirosFiltrados = retiros.filter((r) =>
-    r.nombre.toLowerCase().includes(busquedaRetiro.toLowerCase())
-  );
-  const totalRetiro = retirosFiltrados.length;
-  const totalPagRetiro = Math.max(1, Math.ceil(totalRetiro / porPaginaRetiro));
-  const inicioRetiro = (paginaRetiro - 1) * porPaginaRetiro;
-  const finRetiro = Math.min(inicioRetiro + porPaginaRetiro, totalRetiro);
-  const retirosPaginados = retirosFiltrados.slice(inicioRetiro, finRetiro);
-
-  useEffect(() => { setPaginaRetiro(1); }, [busquedaRetiro, porPaginaRetiro]);
-
-  const irAPaginaRetiro = (pagina: number) => {
-    if (pagina < 1 || pagina > totalPagRetiro) return;
-    setPaginaRetiro(pagina);
-  };
-
-  const numerosPaginaRetiro = () => {
-    const paginas: number[] = [];
-    const inicio = Math.max(1, paginaRetiro - 2);
-    const fin = Math.min(totalPagRetiro, inicio + 4);
     for (let i = inicio; i <= fin; i++) paginas.push(i);
     return paginas;
   };
@@ -398,151 +345,7 @@ export default function JefeView() {
       </Card>
 
       {/* Liquidaciones y Retiros */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <LogOut className="h-4 w-4 text-muted-foreground" />
-              Solicitudes de Retiro Pendientes
-            </CardTitle>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>Mostrar</span>
-                <Select
-                  value={String(porPaginaRetiro)}
-                  onValueChange={(val) => setPorPaginaRetiro(Number(val))}
-                >
-                  <SelectTrigger className="w-16 h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {OPCIONES_POR_PAGINA.map((n) => (
-                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span>registros</span>
-              </div>
-              <div className="relative w-full sm:w-56">
-                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Nombre del socio..."
-                  className="pl-8 h-8 text-xs"
-                  value={busquedaRetiro}
-                  onChange={(e) => setBusquedaRetiro(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre del Socio</TableHead>
-                <TableHead>Fecha de Solicitud</TableHead>
-                <TableHead>Deuda Pendiente</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {retirosPaginados.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
-                    No se encontraron solicitudes de retiro.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                retirosPaginados.map((r) => {
-                  const tieneDeuda = r.deudaPendiente > 0;
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.nombre}</TableCell>
-                      <TableCell>{r.fechaSolicitud}</TableCell>
-                      <TableCell>
-                        <span className={tieneDeuda ? "text-destructive font-semibold" : "text-success font-semibold"}>
-                          S/ {r.deudaPendiente.toFixed(2)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {tieneDeuda
-                          ? <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Con Deuda</Badge>
-                          : <Badge className="bg-success text-success-foreground hover:bg-success/90">Sin Deuda</Badge>
-                        }
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {r.estado === "Procesado" ? (
-                          <span className="text-xs text-muted-foreground italic">Procesado</span>
-                        ) : tieneDeuda ? (
-                          <Button size="sm" variant="outline" disabled className="gap-1.5">
-                            <Lock className="h-3.5 w-3.5" />
-                            Dar de Baja
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                            onClick={() => handleDarDeBaja(r.id)}
-                          >
-                            <UserMinus className="h-3.5 w-3.5" />
-                            Dar de Baja
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-
-          {/* ── Paginación Solicitudes de Retiro ────────────────────────── */}
-          {totalRetiro > 0 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-2 border-t">
-              <p className="text-xs text-muted-foreground">
-                Mostrando registros del <span className="font-semibold">{inicioRetiro + 1}</span> al{" "}
-                <span className="font-semibold">{finRetiro}</span> de un total de{" "}
-                <span className="font-semibold">{totalRetiro}</span> registros
-              </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 h-8"
-                  onClick={() => irAPaginaRetiro(paginaRetiro - 1)}
-                  disabled={paginaRetiro === 1}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                  Anterior
-                </Button>
-                {numerosPaginaRetiro().map((num) => (
-                  <Button
-                    key={num}
-                    variant={num === paginaRetiro ? "default" : "outline"}
-                    size="sm"
-                    className="h-8 w-8 p-0"
-                    onClick={() => irAPaginaRetiro(num)}
-                  >
-                    {num}
-                  </Button>
-                ))}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1 h-8"
-                  onClick={() => irAPaginaRetiro(paginaRetiro + 1)}
-                  disabled={paginaRetiro === totalPagRetiro}
-                >
-                  Siguiente
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <TablaRetirosPendientes />
 
       {/* Modal de Rechazo */}
       <Dialog open={rechazoDialog} onOpenChange={(v) => { if (!v) setRechazoDialog(false); }}>
