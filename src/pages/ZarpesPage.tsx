@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, AlertTriangle, Navigation, CheckCircle, Printer, UserPlus, X } from "lucide-react";
+import { Plus, AlertTriangle, Navigation, CheckCircle, Printer, UserPlus, X, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,11 @@ export default function ZarpesPage() {
   // Estado para el documento de zarpe a imprimir
   const [zarpeParaImprimir, setZarpeParaImprimir] = useState<any>(null);
   const [loadingPrint, setLoadingPrint] = useState<number | string | null>(null);
+
+  // ── Búsqueda y paginación tabla de Zarpes ────────────────────────────────
+  const [busquedaZarpes, setBusquedaZarpes] = useState("");
+  const [paginaZarpes, setPaginaZarpes] = useState(1);
+  const [porPaginaZarpes, setPorPaginaZarpes] = useState(10);
 
   const getHeaders = () => {
     const token = localStorage.getItem("accessToken");
@@ -332,6 +337,39 @@ export default function ZarpesPage() {
   const idZarpeDoc = zp?.id_zarpe || zp?.id || "—";
   const fechaEmision = new Date().toLocaleDateString("es-PE", { day: "2-digit", month: "long", year: "numeric" });
 
+  // ── Filtrado y paginación de la tabla de Zarpes ──────────────────────────
+  const zarpesFiltrados = zarpes.filter((z) => {
+    const texto = busquedaZarpes.trim().toLowerCase();
+    if (!texto) return true;
+    const campo = `${z.socio_nombres || z.socio || ""} ${z.socio_apellidos || ""} ${z.embarcacion || ""}`.toLowerCase();
+    return campo.includes(texto);
+  });
+
+  const totalZarpes = zarpesFiltrados.length;
+  const totalPaginasZarpes = Math.max(1, Math.ceil(totalZarpes / porPaginaZarpes));
+  const paginaActualZarpes = Math.min(paginaZarpes, totalPaginasZarpes);
+  const inicioZarpes = (paginaActualZarpes - 1) * porPaginaZarpes;
+  const finZarpes = Math.min(inicioZarpes + porPaginaZarpes, totalZarpes);
+  const zarpesPaginados = zarpesFiltrados.slice(inicioZarpes, finZarpes);
+
+  const handleBuscarZarpes = (valor: string) => {
+    setBusquedaZarpes(valor);
+    setPaginaZarpes(1);
+  };
+
+  const handleCambiarPorPaginaZarpes = (valor: string) => {
+    setPorPaginaZarpes(Number(valor));
+    setPaginaZarpes(1);
+  };
+
+  const numerosPaginaZarpes = Array.from({ length: totalPaginasZarpes }, (_, i) => i + 1)
+    .filter((n) => n === 1 || n === totalPaginasZarpes || Math.abs(n - paginaActualZarpes) <= 1)
+    .reduce<(number | "...")[]>((acc, n, idx, arr) => {
+      if (idx > 0 && (n as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+      acc.push(n);
+      return acc;
+    }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -569,10 +607,36 @@ export default function ZarpesPage() {
       {/* Tabla de zarpes */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Navigation className="h-4 w-4 text-muted-foreground" />
-            Zarpes Programados
-          </CardTitle>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Navigation className="h-4 w-4 text-muted-foreground" />
+              Zarpes Programados
+            </CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Mostrar</span>
+                <Select value={String(porPaginaZarpes)} onValueChange={handleCambiarPorPaginaZarpes}>
+                  <SelectTrigger className="w-[72px] h-8"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+                <span>registros</span>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por socio o embarcación..."
+                  value={busquedaZarpes}
+                  onChange={(e) => handleBuscarZarpes(e.target.value)}
+                  className="pl-8 h-8 w-full sm:w-64"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -588,7 +652,7 @@ export default function ZarpesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {zarpes.map((z) => (
+              {zarpesPaginados.map((z) => (
                 <TableRow key={z.id_zarpe || z.id}>
                   <TableCell className="font-medium">{z.embarcacion}</TableCell>
                   <TableCell>{z.socio_nombres || z.socio} {z.socio_apellidos || ''}</TableCell>
@@ -622,15 +686,58 @@ export default function ZarpesPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {zarpes.length === 0 && (
+              {zarpesFiltrados.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
-                    No hay zarpes registrados
+                    {busquedaZarpes ? "No se encontraron zarpes con ese criterio de búsqueda." : "No hay zarpes registrados"}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+
+          {totalZarpes > 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 text-sm">
+              <p className="text-muted-foreground">
+                Mostrando registros del {inicioZarpes + 1} al {finZarpes} de un total de {totalZarpes} registros
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  disabled={paginaActualZarpes === 1}
+                  onClick={() => setPaginaZarpes((p) => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </Button>
+                {numerosPaginaZarpes.map((n, idx) =>
+                  n === "..." ? (
+                    <span key={`dots-${idx}`} className="px-2 text-muted-foreground">…</span>
+                  ) : (
+                    <Button
+                      key={n}
+                      variant={n === paginaActualZarpes ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setPaginaZarpes(n as number)}
+                    >
+                      {n}
+                    </Button>
+                  )
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  disabled={paginaActualZarpes === totalPaginasZarpes}
+                  onClick={() => setPaginaZarpes((p) => Math.min(totalPaginasZarpes, p + 1))}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
