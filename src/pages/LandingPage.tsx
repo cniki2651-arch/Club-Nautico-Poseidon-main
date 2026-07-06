@@ -77,6 +77,7 @@ const LandingPage = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [form, setForm] = useState({ nombre: "", correo: "", mensaje: "" });
   const [nombreError, setNombreError] = useState("");
+  const [enviando, setEnviando] = useState(false);
 
   const scrollTo = (id: string) => {
     setMobileMenu(false);
@@ -89,7 +90,7 @@ const LandingPage = () => {
     setNombreError("");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const nombreLimpio = form.nombre.trim();
@@ -106,8 +107,32 @@ const LandingPage = () => {
     }
 
     setNombreError("");
-    toast({ title: "Mensaje enviado", description: "Nos pondremos en contacto contigo pronto." });
-    setForm({ nombre: "", correo: "", mensaje: "" });
+    setEnviando(true);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/contacto`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo enviar el mensaje.");
+      }
+
+      toast({ title: "Mensaje enviado", description: "Nos pondremos en contacto contigo pronto." });
+      setForm({ nombre: "", correo: "", mensaje: "" });
+    } catch (error) {
+      toast({
+        title: "Error al enviar",
+        description: error instanceof Error ? error.message : "Intenta más tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
@@ -357,8 +382,12 @@ const LandingPage = () => {
   required
   className="bg-white text-blue-900 border-0 placeholder:text-blue-400 min-h-[100px]"
 />
-              <button type="submit" className="w-full sm:w-auto inline-flex items-center justify-center h-11 px-8 rounded-md text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-all duration-300 shadow-md">
-                Enviar mensaje
+              <button
+                type="submit"
+                disabled={enviando}
+                className="w-full sm:w-auto inline-flex items-center justify-center h-11 px-8 rounded-md text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-all duration-300 shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {enviando ? "Enviando..." : "Enviar mensaje"}
               </button>
             </form>
           </div>
@@ -377,7 +406,7 @@ const LandingPage = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-amber-400 shrink-0" />
-                <span>clubnauticoposeidon3@gmail.com</span>
+                <span>contacto@cnposeidon.pe</span>
               </div>
             </div>
 
