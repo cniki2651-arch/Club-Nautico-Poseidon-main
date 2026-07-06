@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { UserPlus, ShieldCheck } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { UserPlus, ShieldCheck, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +46,11 @@ export default function FormularioTripulante() {
   const [form, setForm] = useState(formVacio);
   const [idTipoDoc, setIdTipoDoc] = useState(1);
 
+  // ── Estados de tabla: búsqueda y paginación ──────────────────────────────
+  const [busqueda, setBusqueda] = useState("");
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
+  const [paginaActual, setPaginaActual] = useState(1);
+
   // ── Fetch Tripulantes ─────────────────────────────────────────────────────
   const fetchTripulantes = async () => {
     setCargando(true);
@@ -68,6 +73,35 @@ export default function FormularioTripulante() {
   useEffect(() => {
     fetchTripulantes();
   }, []);
+
+  // ── Filtrado por búsqueda (nombre, apellido, documento, rol) ─────────────
+  const tripulantesFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return tripulantes;
+    const termino = busqueda.trim().toLowerCase();
+    return tripulantes.filter(
+      (t) =>
+        t.nombres.toLowerCase().includes(termino) ||
+        t.apellidos.toLowerCase().includes(termino) ||
+        t.dni.toLowerCase().includes(termino) ||
+        t.rol.toLowerCase().includes(termino)
+    );
+  }, [tripulantes, busqueda]);
+
+  // ── Paginación ────────────────────────────────────────────────────────────
+  const totalPaginas = Math.max(1, Math.ceil(tripulantesFiltrados.length / registrosPorPagina));
+
+  useEffect(() => {
+    // Si al filtrar o cambiar el tamaño de página quedamos fuera de rango, volvemos a la página 1
+    setPaginaActual(1);
+  }, [busqueda, registrosPorPagina]);
+
+  const tripulantesPagina = useMemo(() => {
+    const inicio = (paginaActual - 1) * registrosPorPagina;
+    return tripulantesFiltrados.slice(inicio, inicio + registrosPorPagina);
+  }, [tripulantesFiltrados, paginaActual, registrosPorPagina]);
+
+  const inicioRango = tripulantesFiltrados.length === 0 ? 0 : (paginaActual - 1) * registrosPorPagina + 1;
+  const finRango = Math.min(paginaActual * registrosPorPagina, tripulantesFiltrados.length);
 
   // ── Manejadores con Validación en Tiempo Real ─────────────────────────────
   const handleNombresChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,9 +282,7 @@ export default function FormularioTripulante() {
 
             {form.rol !== "Personal de Servicio" && (
               <div className="space-y-1.5 lg:col-span-2">
-                <Label>
-                  {["Capitán", "Patrón de Yate", "Marinero", "Motorista"].includes(form.rol) ? "Licencia *" : "Licencia *"}
-                </Label>
+                <Label>Licencia *</Label>
                 <Input placeholder="N° Carnet (Si aplica)" value={form.licencia} onChange={handleLicenciaChange} />
               </div>
             )}
@@ -266,41 +298,117 @@ export default function FormularioTripulante() {
 
       {/* ── Tabla de tripulantes ────────────────────────────────────────────── */}
       <Card>
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="text-base">Tripulación Autorizada</CardTitle>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {/* Selector de registros por página */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Mostrar</span>
+              <Select
+                value={String(registrosPorPagina)}
+                onValueChange={(v) => setRegistrosPorPagina(Number(v))}
+              >
+                <SelectTrigger className="w-[80px] h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+              <span>registros</span>
+            </div>
+
+            {/* Buscador */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre, documento o rol"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                className="pl-8 h-9"
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {cargando ? (
             <p className="text-sm text-muted-foreground text-center py-6">Cargando registros...</p>
-          ) : tripulantes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No hay tripulantes registrados aún.</p>
+          ) : tripulantesFiltrados.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              {busqueda ? "No se encontraron resultados." : "No hay tripulantes registrados aún."}
+            </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Apellidos y Nombres</TableHead>
-                  <TableHead>Documento</TableHead>
-                  <TableHead>Rol</TableHead>
-                  <TableHead>Licencia</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tripulantes.map((t) => (
-                  <TableRow key={t.id_tripulante}>
-                    <TableCell className="font-medium">{t.apellidos}, {t.nombres}</TableCell>
-                    <TableCell className="font-medium text-xs"><span className="text-muted-foreground mr-1">{t.tipo_doc_siglas || 'DNI'}</span>{t.dni}</TableCell>
-                    <TableCell>{t.rol}</TableCell>
-                    <TableCell className="text-muted-foreground">{t.licencia || "—"}</TableCell>
-                    <TableCell>
-                      <Badge className="bg-green-100 text-green-800 border-green-200">
-                        {t.estado}
-                      </Badge>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Apellidos y Nombres</TableHead>
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>Licencia</TableHead>
+                    <TableHead>Estado</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {tripulantesPagina.map((t) => (
+                    <TableRow key={t.id_tripulante}>
+                      <TableCell className="font-medium">{t.apellidos}, {t.nombres}</TableCell>
+                      <TableCell className="font-medium text-xs">
+                        <span className="text-muted-foreground mr-1">{t.tipo_doc_siglas || "DNI"}</span>
+                        {t.dni}
+                      </TableCell>
+                      <TableCell>{t.rol}</TableCell>
+                      <TableCell className="text-muted-foreground">{t.licencia || "—"}</TableCell>
+                      <TableCell>
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          {t.estado}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Info de rango + paginación */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando registros del {inicioRango} al {finRango} de un total de {tripulantesFiltrados.length} registros
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={paginaActual === 1}
+                    onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                  >
+                    Anterior
+                  </Button>
+                  {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((num) => (
+                    <Button
+                      key={num}
+                      variant={num === paginaActual ? "default" : "outline"}
+                      size="sm"
+                      className={num === paginaActual ? "bg-blue-900 text-white" : ""}
+                      onClick={() => setPaginaActual(num)}
+                    >
+                      {num}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={paginaActual === totalPaginas}
+                    onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
