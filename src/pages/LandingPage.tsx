@@ -377,7 +377,7 @@ const LandingPage = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="h-5 w-5 text-amber-400 shrink-0" />
-                <span>contacto@cnposeidon.pe</span>
+                <span>clubnauticoposeidon3@gmail.com</span>
               </div>
             </div>
 
