@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
-import { Receipt, Calculator, DollarSign, AlertCircle, Clock, CreditCard } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Receipt, Calculator, DollarSign, AlertCircle, Clock, CreditCard, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -87,6 +88,11 @@ export default function FacturacionPage() {
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
   const [errorCuentas, setErrorCuentas] = useState<string | null>(null);
 
+  // ── Estados de tabla "Cuentas de Socios": búsqueda y paginación ──────────
+  const [busquedaCuentas, setBusquedaCuentas] = useState("");
+  const [registrosPorPaginaCuentas, setRegistrosPorPaginaCuentas] = useState(10);
+  const [paginaActualCuentas, setPaginaActualCuentas] = useState(1);
+
   const fetchEstadosCuenta = async () => {
     setCargandoCuentas(true);
     setErrorCuentas(null);
@@ -107,6 +113,32 @@ export default function FacturacionPage() {
       setCargandoCuentas(false);
     }
   };
+
+  // ── Filtrado de "Cuentas de Socios" por búsqueda (nombre o estado) ───────
+  const estadosCuentaFiltrados = useMemo(() => {
+    if (!busquedaCuentas.trim()) return estadosCuenta;
+    const termino = busquedaCuentas.trim().toLowerCase();
+    return estadosCuenta.filter(
+      (c) =>
+        c.socio.toLowerCase().includes(termino) ||
+        c.estado.toLowerCase().includes(termino)
+    );
+  }, [estadosCuenta, busquedaCuentas]);
+
+  // ── Paginación de "Cuentas de Socios" ─────────────────────────────────────
+  const totalPaginasCuentas = Math.max(1, Math.ceil(estadosCuentaFiltrados.length / registrosPorPaginaCuentas));
+
+  useEffect(() => {
+    setPaginaActualCuentas(1);
+  }, [busquedaCuentas, registrosPorPaginaCuentas]);
+
+  const estadosCuentaPagina = useMemo(() => {
+    const inicio = (paginaActualCuentas - 1) * registrosPorPaginaCuentas;
+    return estadosCuentaFiltrados.slice(inicio, inicio + registrosPorPaginaCuentas);
+  }, [estadosCuentaFiltrados, paginaActualCuentas, registrosPorPaginaCuentas]);
+
+  const inicioRangoCuentas = estadosCuentaFiltrados.length === 0 ? 0 : (paginaActualCuentas - 1) * registrosPorPaginaCuentas + 1;
+  const finRangoCuentas = Math.min(paginaActualCuentas * registrosPorPaginaCuentas, estadosCuentaFiltrados.length);
 
   // ── Consumos Pendientes (datos REALES del backend, registrados por Secretaría) ──
   const [consumosPendientes, setConsumosPendientes] = useState<SocioConConsumos[]>([]);
@@ -270,11 +302,44 @@ export default function FacturacionPage() {
         {/* ── PESTAÑA 1: ESTADOS DE CUENTA (Generar Facturación Mensual) ── */}
         <TabsContent value="cuentas" className="space-y-4">
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-3 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="text-base flex items-center gap-2">
                 <Receipt className="h-4 w-4 text-muted-foreground" />
                 Cuentas de Socios
               </CardTitle>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                {/* Selector de registros por página */}
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Mostrar</span>
+                  <Select
+                    value={String(registrosPorPaginaCuentas)}
+                    onValueChange={(v) => setRegistrosPorPaginaCuentas(Number(v))}
+                  >
+                    <SelectTrigger className="w-[80px] h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="25">25</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span>registros</span>
+                </div>
+
+                {/* Buscador */}
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por socio o estado"
+                    value={busquedaCuentas}
+                    onChange={(e) => setBusquedaCuentas(e.target.value)}
+                    className="pl-8 h-9"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {cargandoCuentas ? (
@@ -296,29 +361,69 @@ export default function FacturacionPage() {
                 </div>
               ) : errorCuentas ? (
                 <p className="text-center text-destructive py-10 text-sm">{errorCuentas}</p>
-              ) : estadosCuenta.length === 0 ? (
-                <p className="text-center text-muted-foreground py-10 text-sm">No hay estados de cuenta disponibles.</p>
+              ) : estadosCuentaFiltrados.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10 text-sm">
+                  {busquedaCuentas ? "No se encontraron resultados." : "No hay estados de cuenta disponibles."}
+                </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Socio</TableHead>
-                        <TableHead className="text-right">Total Deuda</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {estadosCuenta.map((c) => (
-                        <TableRow key={c.id_socio}>
-                          <TableCell className="font-medium">{c.socio}</TableCell>
-                          <TableCell className="text-right font-bold">{fmt(c.total_deuda)}</TableCell>
-                          <TableCell><EstadoBadge estado={c.estado} /></TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Socio</TableHead>
+                          <TableHead className="text-right">Total Deuda</TableHead>
+                          <TableHead>Estado</TableHead>
                         </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {estadosCuentaPagina.map((c) => (
+                          <TableRow key={c.id_socio}>
+                            <TableCell className="font-medium">{c.socio}</TableCell>
+                            <TableCell className="text-right font-bold">{fmt(c.total_deuda)}</TableCell>
+                            <TableCell><EstadoBadge estado={c.estado} /></TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Info de rango + paginación */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+                    <p className="text-sm text-muted-foreground">
+                      Mostrando registros del {inicioRangoCuentas} al {finRangoCuentas} de un total de {estadosCuentaFiltrados.length} registros
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={paginaActualCuentas === 1}
+                        onClick={() => setPaginaActualCuentas((p) => Math.max(1, p - 1))}
+                      >
+                        Anterior
+                      </Button>
+                      {Array.from({ length: totalPaginasCuentas }, (_, i) => i + 1).map((num) => (
+                        <Button
+                          key={num}
+                          variant={num === paginaActualCuentas ? "default" : "outline"}
+                          size="sm"
+                          className={num === paginaActualCuentas ? "bg-blue-900 text-white" : ""}
+                          onClick={() => setPaginaActualCuentas(num)}
+                        >
+                          {num}
+                        </Button>
                       ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={paginaActualCuentas === totalPaginasCuentas}
+                        onClick={() => setPaginaActualCuentas((p) => Math.min(totalPaginasCuentas, p + 1))}
+                      >
+                        Siguiente
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
