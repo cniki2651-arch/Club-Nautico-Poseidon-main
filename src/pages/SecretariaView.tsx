@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
   ClipboardList, Users, AlertTriangle, Eye, FileText, 
-  CreditCard, Search, Filter, ChevronLeft, ChevronRight
+  CreditCard, Search, Filter, ChevronLeft, ChevronRight, SlidersHorizontal
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,12 @@ interface ConsumoPlano {
   monto: number;
 }
 
+// ── Disponibilidad de servicios (manual, controlada por Secretaría) ────────
+interface DisponibilidadServicio {
+  disponible: boolean;
+  motivo: string | null;
+}
+
 const OPCIONES_POR_PAGINA = [5, 10, 25, 50];
 
 // ── Configuración de validación por tipo de documento (Registrar Servicio) ─
@@ -65,6 +71,45 @@ const REGEX_DOC_SERVICIO: Record<string, RegExp> = {
   CE: /^[0-9]*$/,        // solo números (sin letras)
   PAS: /^[a-zA-Z0-9]*$/, // alfanumérico
 };
+
+// ── Lista maestra de servicios (misma agrupación que en el <select>) ───────
+// Se usa tanto para renderizar el <select> como el panel de gestión de
+// disponibilidad, así solo hay que mantener un solo lugar con la lista.
+const GRUPOS_SERVICIOS: { grupo: string; items: { valor: string; label: string }[] }[] = [
+  {
+    grupo: "Servicios Náuticos",
+    items: [
+      { valor: "Anclaje / Amarre", label: "Anclaje / Radas y Amarres" },
+      { valor: "Uso de Rampa / Grúa", label: "Uso de Rampa y Grúa" },
+      { valor: "Cabotaje", label: "Cabotaje" },
+      { valor: "Traslado de Nave", label: "Traslado de Nave" },
+    ],
+  },
+  {
+    grupo: "Instalaciones del Club",
+    items: [
+      { valor: "Piscinas", label: "Piscinas" },
+      { valor: "Salón de Relajación", label: "Salón de Relajación" },
+      { valor: "Cafetería", label: "Cafetería" },
+      { valor: "Salón de Fiestas", label: "Salón de Fiestas" },
+    ],
+  },
+  {
+    grupo: "Instrucción y Escuela",
+    items: [
+      { valor: "Escuela de Navegación", label: "Cursos Escuela de Navegación" },
+      { valor: "Instructor de Natación", label: "Instructor de Natación" },
+      { valor: "Instructor de Buceo", label: "Instructor de Buceo" },
+    ],
+  },
+  {
+    grupo: "Servicios Adicionales",
+    items: [
+      { valor: "Limpieza de Nave", label: "Limpieza de Nave" },
+      // "Otros" queda fuera: siempre disponible, no tiene sentido deshabilitarlo
+    ],
+  },
+];
 
 export default function SecretariaView() {
   
@@ -115,6 +160,17 @@ export default function SecretariaView() {
   const [preciosServicios, setPreciosServicios] = useState<Record<string, number>>({});
   const [cargandoPrecios, setCargandoPrecios] = useState(false);
 
+  // ── Disponibilidad de servicios (nuevo) ───────────────────────────────────
+  const [disponibilidadServicios, setDisponibilidadServicios] = useState<Record<string, DisponibilidadServicio>>({});
+  const [cargandoDisponibilidad, setCargandoDisponibilidad] = useState(false);
+  const [disponibilidadDialog, setDisponibilidadDialog] = useState(false);
+  const [guardandoServicioKey, setGuardandoServicioKey] = useState<string | null>(null);
+  const [motivoInputs, setMotivoInputs] = useState<Record<string, string>>({});
+
+  // Un servicio se considera disponible por defecto si no hay registro guardado
+  const esServicioDisponible = (servicio: string) =>
+    disponibilidadServicios[servicio]?.disponible !== false;
+
   //   PRECIOS DE SERVICIOS 
   const fetchPreciosServicios = async () => {
     setCargandoPrecios(true);
@@ -129,6 +185,61 @@ export default function SecretariaView() {
       
     } finally {
       setCargandoPrecios(false);
+    }
+  };
+
+  // ── DISPONIBILIDAD DE SERVICIOS: cargar estado actual ────────────────────
+  const fetchDisponibilidadServicios = async () => {
+    setCargandoDisponibilidad(true);
+    try {
+      const res = await apiFetch("/api/consumos/disponibilidad");
+      if (!res.ok) return;
+      const data: { servicio: string; disponible: boolean; motivo: string | null }[] = await res.json();
+      const mapa: Record<string, DisponibilidadServicio> = {};
+      data.forEach((item) => {
+        mapa[item.servicio] = { disponible: item.disponible, motivo: item.motivo };
+      });
+      setDisponibilidadServicios(mapa);
+    } catch {
+      // Si falla, se asume que todos los servicios están disponibles (comportamiento por defecto)
+    } finally {
+      setCargandoDisponibilidad(false);
+    }
+  };
+
+  // ── DISPONIBILIDAD DE SERVICIOS: alternar disponible/no disponible ───────
+  const handleToggleDisponibilidad = async (servicio: string) => {
+    const disponibleActual = esServicioDisponible(servicio);
+    const nuevoValor = !disponibleActual;
+    const motivo = motivoInputs[servicio]?.trim() || null;
+
+    setGuardandoServicioKey(servicio);
+    try {
+      const res = await apiFetch(`/api/consumos/disponibilidad/${encodeURIComponent(servicio)}`, {
+        method: "PUT",
+        body: JSON.stringify({ disponible: nuevoValor, motivo }),
+      });
+      if (!res.ok) throw new Error("No se pudo actualizar la disponibilidad.");
+
+      setDisponibilidadServicios((prev) => ({
+        ...prev,
+        [servicio]: { disponible: nuevoValor, motivo },
+      }));
+
+      toast.success(nuevoValor ? "Servicio habilitado" : "Servicio deshabilitado", {
+        description: servicio,
+      });
+
+      // Si el servicio recién deshabilitado era el seleccionado en "Registrar Servicio", lo reseteamos
+      if (!nuevoValor && categoriaServicio === servicio) {
+        setCategoriaServicio("Otros");
+      }
+    } catch (err) {
+      toast.error("Error al actualizar disponibilidad", {
+        description: err instanceof Error ? err.message : "Intenta nuevamente.",
+      });
+    } finally {
+      setGuardandoServicioKey(null);
     }
   };
 
@@ -193,6 +304,7 @@ export default function SecretariaView() {
     fetchMetricas();
     fetchSolicitudes();
     fetchPreciosServicios();
+    fetchDisponibilidadServicios();
   }, []);
 
   //  AUTOCOMPLETAR MONTO 
@@ -426,6 +538,14 @@ export default function SecretariaView() {
             triggerSize="default"
             triggerClassName="bg-blue-600 text-white hover:bg-blue-700 font-medium px-4 py-2.5 rounded-xl shadow-sm transition-transform active:scale-95"
           />
+          <Button
+            variant="outline"
+            className="gap-2 font-medium px-4 py-2.5 rounded-xl shadow-sm transition-transform active:scale-95"
+            onClick={() => setDisponibilidadDialog(true)}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Disponibilidad de Servicios
+          </Button>
           <Button 
             className="gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 hover:from-amber-600 hover:to-amber-700 font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-transform active:scale-95 border-0"
             onClick={() => setServicioDialog(true)}
@@ -729,26 +849,24 @@ export default function SecretariaView() {
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Servicio</label>
-              <select className="w-full flex h-10 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm text-slate-800 dark:text-slate-200" value={categoriaServicio} onChange={(e) => setCategoriaServicio(e.target.value)}>
-                <optgroup label="Servicios Náuticos">
-                  <option value="Anclaje / Amarre">Anclaje / Radas y Amarres</option>
-                  <option value="Uso de Rampa / Grúa">Uso de Rampa y Grúa</option>
-                  <option value="Cabotaje">Cabotaje</option>
-                  <option value="Traslado de Nave">Traslado de Nave</option>
-                </optgroup>
-                <optgroup label="Instalaciones del Club">
-                  <option value="Piscinas">Piscinas</option>
-                  <option value="Salón de Relajación">Salón de Relajación</option>
-                  <option value="Cafetería">Cafetería</option>
-                  <option value="Salón de Fiestas">Salón de Fiestas</option>
-                </optgroup>
-                <optgroup label="Instrucción y Escuela">
-                  <option value="Escuela de Navegación">Cursos Escuela de Navegación</option>
-                  <option value="Instructor de Natación">Instructor de Natación</option>
-                  <option value="Instructor de Buceo">Instructor de Buceo</option>
-                </optgroup>
+              <select
+                className="w-full flex h-10 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-sm text-slate-800 dark:text-slate-200"
+                value={categoriaServicio}
+                onChange={(e) => setCategoriaServicio(e.target.value)}
+              >
+                {GRUPOS_SERVICIOS.map((grupo) => (
+                  <optgroup key={grupo.grupo} label={grupo.grupo}>
+                    {grupo.items.map((item) => {
+                      const disponible = esServicioDisponible(item.valor);
+                      return (
+                        <option key={item.valor} value={item.valor} disabled={!disponible}>
+                          {item.label}{!disponible ? " (No disponible)" : ""}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                ))}
                 <optgroup label="Servicios Adicionales">
-                  <option value="Limpieza de Nave">Limpieza de Nave</option>
                   <option value="Otros">Otros (especificar en descripción)</option>
                 </optgroup>
               </select>
@@ -813,6 +931,78 @@ export default function SecretariaView() {
           <div className="rounded-lg border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 p-4 text-sm text-slate-600 dark:text-slate-400">
             {motivoSeleccionado}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Gestionar Disponibilidad de Servicios (nuevo) */}
+      <Dialog open={disponibilidadDialog} onOpenChange={setDisponibilidadDialog}>
+        <DialogContent className="sm:max-w-2xl rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
+              <SlidersHorizontal className="h-5 w-5 text-blue-600" />
+              Disponibilidad de Servicios
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Marca un servicio como no disponible (ej. salón en mantenimiento, ya reservado) para que no pueda seleccionarse
+              al registrar un consumo. Puedes agregar un motivo opcional para dejar constancia.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-1">
+            {cargandoDisponibilidad ? (
+              <p className="text-sm text-slate-400 text-center py-6">Cargando disponibilidad de servicios...</p>
+            ) : (
+              GRUPOS_SERVICIOS.map((grupo) => (
+                <div key={grupo.grupo} className="space-y-2">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{grupo.grupo}</p>
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+                    {grupo.items.map((item) => {
+                      const disponible = esServicioDisponible(item.valor);
+                      const guardando = guardandoServicioKey === item.valor;
+                      return (
+                        <div key={item.valor} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.label}</p>
+                            <Badge
+                              className={`mt-1 text-xs ${
+                                disponible
+                                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                  : "bg-rose-100 text-rose-700 border-rose-200"
+                              }`}
+                            >
+                              {disponible ? "Disponible" : "No disponible"}
+                            </Badge>
+                          </div>
+                          <Input
+                            placeholder="Motivo (opcional)"
+                            defaultValue={disponibilidadServicios[item.valor]?.motivo ?? ""}
+                            onChange={(e) =>
+                              setMotivoInputs((prev) => ({ ...prev, [item.valor]: e.target.value }))
+                            }
+                            className="h-9 text-xs sm:w-56"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={disponible ? "outline" : "default"}
+                            className={!disponible ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "text-rose-600 hover:text-rose-700"}
+                            disabled={guardando}
+                            onClick={() => handleToggleDisponibilidad(item.valor)}
+                          >
+                            {guardando ? "Guardando..." : disponible ? "Deshabilitar" : "Habilitar"}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" onClick={() => setDisponibilidadDialog(false)}>Cerrar</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
