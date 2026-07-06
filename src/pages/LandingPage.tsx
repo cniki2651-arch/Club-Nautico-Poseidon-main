@@ -68,19 +68,44 @@ const galleryImages = [
   { src: gallery6, alt: "Escuela de buceo", label: "Buceo" },
 ];
 
+// Solo letras (con tildes y ñ) y espacios
+const NOMBRE_REGEX = /^[a-zA-ZÁÉÍÓÚáéíóúÑñ\s]*$/;
+
 const LandingPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [mobileMenu, setMobileMenu] = useState(false);
   const [form, setForm] = useState({ nombre: "", correo: "", mensaje: "" });
+  const [nombreError, setNombreError] = useState("");
 
   const scrollTo = (id: string) => {
     setMobileMenu(false);
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleNombreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFiltrado = e.target.value.replace(/[^a-zA-ZÁÉÍÓÚáéíóúÑñ\s]/g, "");
+    setForm({ ...form, nombre: valorFiltrado });
+    setNombreError("");
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const nombreLimpio = form.nombre.trim();
+    const esNombreValido = NOMBRE_REGEX.test(nombreLimpio) && nombreLimpio.length > 0;
+
+    if (!esNombreValido) {
+      setNombreError("El nombre solo puede contener letras y espacios.");
+      toast({
+        title: "Nombre inválido",
+        description: "Por favor ingresa un nombre válido (solo letras).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setNombreError("");
     toast({ title: "Mensaje enviado", description: "Nos pondremos en contacto contigo pronto." });
     setForm({ nombre: "", correo: "", mensaje: "" });
   };
@@ -299,14 +324,23 @@ const LandingPage = () => {
               <div className="h-1 w-10 bg-amber-400 rounded-full" />
               <h2 className="text-3xl font-bold text-white">Contáctanos</h2>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Input 
-                placeholder="Nombre completo" 
-                value={form.nombre} 
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })} 
-                required 
-                className="bg-white text-blue-900 border-0 placeholder:text-blue-400 h-11" 
-              />
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+              <div>
+                <Input 
+                  placeholder="Nombre completo" 
+                  value={form.nombre} 
+                  onChange={handleNombreChange} 
+                  required 
+                  maxLength={60}
+                  aria-invalid={!!nombreError}
+                  className={`bg-white text-blue-900 border-0 placeholder:text-blue-400 h-11 ${
+                    nombreError ? "ring-2 ring-red-500" : ""
+                  }`}
+                />
+                {nombreError && (
+                  <p className="mt-1.5 text-xs font-medium text-red-300">{nombreError}</p>
+                )}
+              </div>
               <Input 
                 type="email" 
                 placeholder="Correo electrónico" 
