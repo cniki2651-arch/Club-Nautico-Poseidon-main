@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/apiClient"; 
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -53,23 +54,19 @@ export default function FormularioTripulante() {
 
   // ── Fetch Tripulantes ─────────────────────────────────────────────────────
   const fetchTripulantes = async () => {
-    setCargando(true);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/tripulantes", {
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTripulantes(data);
-      }
-    } catch (error) {
-      console.error("Error al cargar tripulantes", error);
-    } finally {
-      setCargando(false);
+  setCargando(true);
+  try {
+    const res = await apiFetch("/api/tripulantes");
+    if (res.ok) {
+      const data = await res.json();
+      setTripulantes(data);
     }
-  };
-
+  } catch (error) {
+    console.error("Error al cargar tripulantes", error);
+  } finally {
+    setCargando(false);
+  }
+};
   useEffect(() => {
     fetchTripulantes();
   }, []);
@@ -184,19 +181,17 @@ export default function FormularioTripulante() {
 
     setEnviando(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/tripulantes/crear", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          id_tipo_doc: idTipoDoc,
-          nombres: form.nombres,
-          apellidos: form.apellidos,
-          dni: form.dni.trim().toUpperCase(),
-          rol: form.rol,
-          licencia: form.licencia || null,
-        }),
-      });
+      const res = await apiFetch("/api/tripulantes/crear", {
+  method: "POST",
+  body: JSON.stringify({
+    id_tipo_doc: idTipoDoc,
+    nombres: form.nombres,
+    apellidos: form.apellidos,
+    dni: form.dni.trim().toUpperCase(),
+    rol: form.rol,
+    licencia: form.licencia || null,
+  }),
+});
 
       const data = await res.json().catch(() => ({}));
 
