@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calcularMontoCuota } from "@/lib/businessRules";
 import { useToast } from "@/hooks/use-toast";
-
+import { apiFetch } from "@/lib/apiClient";
 // ── Tipos para los consumos reales del backend ──────────────────────────────
 interface ConsumoDetalle {
   id_consumo: number;
@@ -97,13 +97,7 @@ export default function FacturacionPage() {
     setCargandoCuentas(true);
     setErrorCuentas(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/estados-cuenta`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/facturacion/estados-cuenta");
       if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los estados de cuenta.`);
       const data: EstadoCuenta[] = await res.json();
       setEstadosCuenta(data);
@@ -150,13 +144,7 @@ export default function FacturacionPage() {
     setCargandoConsumos(true);
     setErrorConsumos(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/consumos-pendientes`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/facturacion/consumos-pendientes");
       if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los consumos pendientes.`);
       const data: SocioConConsumos[] = await res.json();
       setConsumosPendientes(data);
@@ -175,13 +163,7 @@ export default function FacturacionPage() {
     setCargandoMorosos(true);
     setErrorMorosos(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/morosos`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/facturacion/morosos");
       if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los socios morosos.`);
       const data: SocioMoroso[] = await res.json();
       setMorosos(data);
@@ -215,18 +197,13 @@ export default function FacturacionPage() {
     e.preventDefault();
     if (!fSocio || !facturaSeleccionada) return;
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/fraccionar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          id_factura: Number(fSocio),
-          cuotas: Number(fCuotas),
-        }),
-      });
+      const res = await apiFetch("/api/facturacion/fraccionar", {
+  method: "POST",
+  body: JSON.stringify({
+    id_factura: Number(fSocio),
+    cuotas: Number(fCuotas),
+  }),
+});
       const data = await res.json();
       if (!res.ok) throw new Error(data.mensaje || "No se pudo realizar el fraccionamiento.");
 
@@ -250,14 +227,9 @@ export default function FacturacionPage() {
   async function handleGenerarFacturacion() {
     setGenerandoFacturacion(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/facturacion/generar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/facturacion/generar", {
+  method: "POST",
+});
       const data = await res.json();
       if (!res.ok) throw new Error(data.mensaje || "No se pudo generar la facturación.");
 
