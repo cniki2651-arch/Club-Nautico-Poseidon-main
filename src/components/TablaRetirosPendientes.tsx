@@ -30,7 +30,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-
+import { apiFetch } from "@/lib/apiClient";
 interface SolicitudRetiro {
   id_solicitud: number;
   id_socio: number;
@@ -73,13 +73,7 @@ export default function TablaRetirosPendientes() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${API_URL}/api/retiros/pendientes`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/retiros/pendientes");
 
       if (!res.ok) {
         throw new Error(`Error ${res.status}: no se pudieron cargar las solicitudes.`);
@@ -149,19 +143,13 @@ export default function TablaRetirosPendientes() {
 
     setProcesandoBaja(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${API_URL}/api/retiros/aprobar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          id_solicitud: solicitudSeleccionada.id_solicitud,
-          id_socio: solicitudSeleccionada.id_socio,
-        }),
-      });
-
+      const res = await apiFetch("/api/retiros/aprobar", {
+  method: "POST",
+  body: JSON.stringify({
+    id_solicitud: solicitudSeleccionada.id_solicitud,
+    id_socio: solicitudSeleccionada.id_socio,
+  }),
+});
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.mensaje || `Error ${res.status}: no se pudo procesar la baja.`);
