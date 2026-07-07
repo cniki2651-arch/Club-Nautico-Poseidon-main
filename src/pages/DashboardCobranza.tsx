@@ -21,6 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@radix-ui/react-label";
+import { apiFetch } from "@/lib/apiClient";
 
 // ===================================================================
 // Dashboard de Cobranzas — un solo componente, tres vistas según la ruta.
@@ -135,18 +136,11 @@ export default function DashboardCobranza() {
   const rangeEndPV = Math.min(pagePV * pageSizePV, totalRecordsPV);
 
   const fetchPorVencer = async () => {
-    setLoadingPV(true);
-    setErrorPV(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
-      const res = await fetch(`${apiUrl}/api/facturacion/por-vencer`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar las facturas por vencer.`);
+  setLoadingPV(true);
+  setErrorPV(null);
+  try {
+    const res = await apiFetch("/api/facturacion/por-vencer");
+    if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar las facturas por vencer.`);
       const data = await res.json();
       setPorVencerList(data);
       setPagePV(1);
@@ -163,16 +157,10 @@ export default function DashboardCobranza() {
     if (!pFacturaIdPV) return;
     setPayingPV(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
-      const res = await fetch(`${apiUrl}/api/facturacion/pagar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ id_factura: Number(pFacturaIdPV) }),
-      });
+      const res = await apiFetch("/api/facturacion/pagar", {
+  method: "POST",
+  body: JSON.stringify({ id_factura: Number(pFacturaIdPV) }),
+});
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.mensaje || "Error al registrar el pago.");
@@ -235,19 +223,12 @@ export default function DashboardCobranza() {
   const rangeEndM = Math.min(pageM * pageSizeM, totalRecordsM);
 
   const fetchMorosos = async (rate?: string) => {
-    setLoadingM(true);
-    setErrorM(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
-      const targetRate = typeof rate === "string" ? rate : sbsRate;
-      const res = await fetch(`${apiUrl}/api/facturacion/morosos?tasa_mensual=${targetRate}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los socios morosos.`);
+  setLoadingM(true);
+  setErrorM(null);
+  try {
+    const targetRate = typeof rate === "string" ? rate : sbsRate;
+    const res = await apiFetch(`/api/facturacion/morosos?tasa_mensual=${targetRate}`);
+    if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los socios morosos.`);
       const data = await res.json();
       setMorososList(data);
       setPageM(1);
@@ -264,19 +245,13 @@ export default function DashboardCobranza() {
     if (!pFacturaIdM) return;
     setPayingM(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
-      const res = await fetch(`${apiUrl}/api/facturacion/pagar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          id_factura: Number(pFacturaIdM),
-          tasa_mensual: Number(sbsRate),
-        }),
-      });
+     const res = await apiFetch("/api/facturacion/pagar", {
+  method: "POST",
+  body: JSON.stringify({
+    id_factura: Number(pFacturaIdM),
+    tasa_mensual: Number(sbsRate),
+  }),
+});
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.mensaje || "Error al registrar el pago.");
@@ -336,18 +311,11 @@ export default function DashboardCobranza() {
   const rangeEndPR = Math.min(pagePR * pageSizePR, totalRecordsPR);
 
   const fetchPagosRealizados = async () => {
-    setLoadingPR(true);
-    setErrorPR(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
-      const res = await fetch(`${apiUrl}/api/facturacion/pagados`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar el historial de pagos.`);
+  setLoadingPR(true);
+  setErrorPR(null);
+  try {
+    const res = await apiFetch("/api/facturacion/pagados");
+    if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar el historial de pagos.`);
       const data = await res.json();
       setPagosRealizadosList(data);
       setPagePR(1);
