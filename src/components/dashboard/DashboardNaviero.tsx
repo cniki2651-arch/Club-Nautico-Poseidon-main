@@ -3,7 +3,7 @@ import { Ship, Navigation, AlertTriangle, Anchor, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
+import { apiFetch } from "@/lib/apiClient"; 
 function estadoZarpeBadge(estado: string) {
   switch (estado) {
     case "Aprobado":
@@ -39,30 +39,25 @@ export default function DashboardNaviero() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const token = localStorage.getItem("accessToken");
-        const response = await fetch("https://api-poseidon.onrender.com/api/dashboard/naviero", {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+  const fetchDashboardData = async () => {
+    try {
+      const response = await apiFetch("/api/dashboard/naviero");
 
-        if (!response.ok) {
-          throw new Error("Error al obtener los datos del dashboard");
-        }
-
-        const result = await response.json();
-        setData(result);
-      } catch (err: any) {
-        setError(err.message || "Ocurrió un error");
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Error al obtener los datos del dashboard");
       }
-    };
 
-    fetchDashboardData();
-  }, []);
+      const result = await response.json();
+      setData(result);
+    } catch (err: any) {
+      setError(err.message || "Ocurrió un error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchDashboardData();
+}, []);
 
   const formatTime = (timeString: string) => {
     if (!timeString) return "";

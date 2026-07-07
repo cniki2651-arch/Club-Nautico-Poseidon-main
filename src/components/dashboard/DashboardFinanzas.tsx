@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-
+import { apiFetch } from "@/lib/apiClient"; 
 // ===================================================================
 // "Inicio" para el rol Finanzas: resumen ejecutivo con KPIs y gráfica.
 // El detalle completo (Estados de Cuenta, Consumos Pendientes,
@@ -89,28 +89,19 @@ export default function DashboardFinanzas() {
 
   useEffect(() => {
     const fetchDashboard = async () => {
-      setCargando(true);
-      setError(null);
-      try {
-        const token = localStorage.getItem("accessToken");
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/facturacion/dashboard`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          }
-        );
-        if (!res.ok) throw new Error(`Error ${res.status} al cargar el dashboard.`);
-        const json: DashboardData = await res.json();
-        setData(json);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error inesperado.");
-      } finally {
-        setCargando(false);
-      }
-    };
+  setCargando(true);
+  setError(null);
+  try {
+    const res = await apiFetch("/api/facturacion/dashboard");
+    if (!res.ok) throw new Error(`Error ${res.status} al cargar el dashboard.`);
+    const json: DashboardData = await res.json();
+    setData(json);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Error inesperado.");
+  } finally {
+    setCargando(false);
+  }
+};
     fetchDashboard();
   }, []);
 
