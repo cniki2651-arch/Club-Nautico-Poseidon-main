@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import FormularioTripulante from "@/components/FormularioTripulante";
+import { apiFetch } from "@/lib/apiClient"; 
 
 // ---------------------------------------------------------------------------
 // Tipos
@@ -108,10 +109,7 @@ export default function EmbarcacionesPage() {
     setCargandoFlota(true);
     setErrorFlota(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/embarcaciones", {
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
+      const res = await apiFetch("/api/embarcaciones");
       if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar la flota.`);
       const data = await res.json();
       setEmbarcaciones(data);
@@ -124,10 +122,7 @@ export default function EmbarcacionesPage() {
 
   const fetchRadas = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/radas", {
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
+      const res = await apiFetch("/api/radas");
       if (!res.ok) return;
       const data = await res.json();
       setRadas(data);
@@ -136,10 +131,7 @@ export default function EmbarcacionesPage() {
 
   const fetchSocios = async () => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/socios", {
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
+      const res = await apiFetch("/api/socios");
       if (!res.ok) return;
       const data = await res.json();
       setSocios(data);
@@ -184,18 +176,17 @@ export default function EmbarcacionesPage() {
     setEnviando(true);
     setErrorForm(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/embarcaciones/crear", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({
-          id_socio: Number(form.id_socio),
-          matricula: form.matricula,
-          nombre_nave: form.nombre_nave,
-          tipo: form.tipo,
-          eslora: parseFloat(form.eslora) || form.eslora,
-        }),
-      });
+      const res = await apiFetch("/api/embarcaciones/crear", {
+  method: "POST",
+  body: JSON.stringify({
+    id_socio: Number(form.id_socio),
+    matricula: form.matricula,
+    nombre_nave: form.nombre_nave,
+    tipo: form.tipo,
+    eslora: parseFloat(form.eslora) || form.eslora,
+  }),
+});
+  
       const data = await res.json().catch(() => ({}));
       if (res.ok || res.status === 201) {
         toast({ title: "Embarcación registrada", description: `${form.nombre_nave} agregada con validación pendiente.` });
@@ -214,11 +205,9 @@ export default function EmbarcacionesPage() {
 
   const handleValidar = async (id: number, nombre: string) => {
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`https://api-poseidon.onrender.com/api/embarcaciones/${id}/validar`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
+      const res = await apiFetch(`/api/embarcaciones/${id}/validar`, {
+  method: "PUT",
+});
       if (res.ok || res.status === 200) {
         setEmbarcaciones((prev) => prev.map((e) => e.id_embarcacion === id ? { ...e, estado_capitania: "Validado" } : e));
         toast({ title: "Capitanía validada", description: `${nombre} ha sido validada y ya puede usar una rada.` });
@@ -240,12 +229,10 @@ export default function EmbarcacionesPage() {
   const handleAsignar = async () => {
     if (!embSeleccionada || !radaDialog) return;
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`https://api-poseidon.onrender.com/api/radas/${radaDialog.radaId}/asignar`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ id_embarcacion: Number(embSeleccionada) }),
-      });
+      const res = await apiFetch(`/api/radas/${radaDialog.radaId}/asignar`, {
+  method: "PUT",
+  body: JSON.stringify({ id_embarcacion: Number(embSeleccionada) }),
+});
       if (res.ok) {
         toast({ title: "Rada asignada", description: "La embarcación ha sido estacionada correctamente." });
         setRadaDialog(null);
@@ -261,11 +248,9 @@ export default function EmbarcacionesPage() {
   const handleLiberar = async () => {
     if (!radaDialog) return;
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`https://api-poseidon.onrender.com/api/radas/${radaDialog.radaId}/liberar`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
+      const res = await apiFetch(`/api/radas/${radaDialog.radaId}/liberar`, {
+  method: "PUT",
+});
       if (res.ok) {
         toast({ title: "Rada liberada", description: "El espacio de amarre vuelve a estar disponible." });
         setRadaDialog(null);

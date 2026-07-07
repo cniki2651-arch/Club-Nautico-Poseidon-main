@@ -36,7 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-
+import { apiFetch } from "@/lib/apiClient"; 
 // ---------------------------------------------------------------------------
 // Tipos
 // ---------------------------------------------------------------------------
@@ -139,13 +139,7 @@ export default function UsuariosPage() {
     setCargandoLista(true);
     setErrorLista(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/auth/usuarios", {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      const res = await apiFetch("/api/auth/usuarios");
       if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar la lista.`);
       const data: UsuarioAPI[] = await res.json();
       const mapeados: Usuario[] = data.map((u) => ({
@@ -194,22 +188,16 @@ export default function UsuariosPage() {
     setError(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
-
-      const res = await fetch("https://api-poseidon.onrender.com/api/auth/registrar", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          nombres:    form.nombres,
-          apellidos:  form.apellidos,
-          correo:     form.correo,
-          contrasena: form.contrasena,
-          id_rol:     Number(rolIdMap[form.rol as Rol]),
-        }),
-      });
+      const res = await apiFetch("/api/auth/registrar", {
+  method: "POST",
+  body: JSON.stringify({
+    nombres:    form.nombres,
+    apellidos:  form.apellidos,
+    correo:     form.correo,
+    contrasena: form.contrasena,
+    id_rol:     Number(rolIdMap[form.rol as Rol]),
+  }),
+});
 
       const data = await res.json();
 
@@ -243,17 +231,9 @@ export default function UsuariosPage() {
     if (!usuarioAEliminar) return;
 
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(
-        `https://api-poseidon.onrender.com/api/auth/usuarios/${usuarioAEliminar.id_usuario}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const res = await apiFetch(`/api/auth/usuarios/${usuarioAEliminar.id_usuario}`, {
+  method: "DELETE",
+});
       if (res.status === 200) {
         setUsuarios((prev) => prev.filter((u) => u.id_usuario !== usuarioAEliminar.id_usuario));
         setUsuarioAEliminar(null);
@@ -290,22 +270,14 @@ export default function UsuariosPage() {
     setErrorEdit(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(
-        `https://api-poseidon.onrender.com/api/auth/usuarios/${usuarioEnEdicion.id_usuario}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            nombres:   editForm.nombres,
-            apellidos: editForm.apellidos,
-            id_rol:    Number(rolIdMap[editForm.rol as Rol]),
-          }),
-        }
-      );
+      const res = await apiFetch(`/api/auth/usuarios/${usuarioEnEdicion.id_usuario}`, {
+  method: "PUT",
+  body: JSON.stringify({
+    nombres:   editForm.nombres,
+    apellidos: editForm.apellidos,
+    id_rol:    Number(rolIdMap[editForm.rol as Rol]),
+  }),
+});
 
       const data = await res.json().catch(() => ({}));
 
