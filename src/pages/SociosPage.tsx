@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import ModalSolicitarRetiro from "@/components/ModalSolicitarRetiro";
-
+import { apiFetch } from "@/lib/apiClient";
 // ---------------------------------------------------------------------------
 // Tipo que devuelve el backend
 // ---------------------------------------------------------------------------
@@ -102,17 +102,11 @@ export default function SociosPage() {
 
   // ── Cargar socios desde el backend ────────────────────────────────────────
   const fetchSocios = async () => {
-    setCargandoLista(true);
-    setErrorLista(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/socios", {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar la lista.`);
+  setCargandoLista(true);
+  setErrorLista(null);
+  try {
+    const res = await apiFetch("/api/socios");
+    if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar la lista.`);
       const data: SocioAPI[] = await res.json();
       setSocios(data);
     } catch (err) {
