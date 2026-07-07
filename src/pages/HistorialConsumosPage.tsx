@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiFetch } from "@/lib/apiClient";
 
 interface ConsumoDetalle {
   id_consumo: number;
@@ -46,41 +47,33 @@ export default function HistorialConsumosPage() {
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
 
   const fetchConsumos = async () => {
-    setCargandoConsumos(true);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const apiUrl = import.meta.env.VITE_API_URL || "https://api-poseidon.onrender.com";
+  setCargandoConsumos(true);
+  try {
+    const res = await apiFetch("/api/facturacion/consumos");
+    if (!res.ok) return;
+    const data: SocioConsumosAPI[] = await res.json();
 
-      const res = await fetch(`${apiUrl}/api/facturacion/consumos`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!res.ok) return;
-      const data: SocioConsumosAPI[] = await res.json();
-
-      const flatList: ConsumoPlano[] = [];
-      data.forEach((socio) => {
-        socio.consumos.forEach((c) => {
-          flatList.push({
-            id_consumo: c.id_consumo,
-            dni: socio.dni,
-            tipo_doc_siglas: socio.tipo_doc_siglas || "DNI",
-            nombre_completo: `${socio.nombres} ${socio.apellidos}`,
-            fecha: c.fecha_consumo,
-            servicio: c.servicio,
-            monto: c.monto,
-          });
+    const flatList: ConsumoPlano[] = [];
+    data.forEach((socio) => {
+      socio.consumos.forEach((c) => {
+        flatList.push({
+          id_consumo: c.id_consumo,
+          dni: socio.dni,
+          tipo_doc_siglas: socio.tipo_doc_siglas || "DNI",
+          nombre_completo: `${socio.nombres} ${socio.apellidos}`,
+          fecha: c.fecha_consumo,
+          servicio: c.servicio,
+          monto: c.monto,
         });
       });
-      setConsumosList(flatList);
-    } catch (err: unknown) {
-      console.error("Error al obtener historial de consumos:", err);
-    } finally {
-      setCargandoConsumos(false);
-    }
-  };
+    });
+    setConsumosList(flatList);
+  } catch (err: unknown) {
+    console.error("Error al obtener historial de consumos:", err);
+  } finally {
+    setCargandoConsumos(false);
+  }
+};
 
   useEffect(() => {
     fetchConsumos();
