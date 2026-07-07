@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import TablaRetirosPendientes from "@/components/TablaRetirosPendientes";
-
+import { apiFetch } from "@/lib/apiClient"; 
 // ---------------------------------------------------------------------------
 // Tipos
 // ---------------------------------------------------------------------------
@@ -70,18 +70,13 @@ export default function JefeView() {
   const [porPaginaAprob, setPorPaginaAprob] = useState(10);
 
   // ── Fetch solicitudes pendientes ──────────────────────────────────────────
-  const fetchPendientes = async () => {
-    setCargandoLista(true);
-    setErrorLista(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://api-poseidon.onrender.com/api/solicitudes", {
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-      if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar las solicitudes.`);
+  
+     const fetchPendientes = async () => {
+  setCargandoLista(true);
+  setErrorLista(null);
+  try {
+    const res = await apiFetch("/api/solicitudes");
+    if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar las solicitudes.`);
       const data: SolicitudAPI[] = await res.json();
       setPendientes(data.filter((s) => s.estado === "Pendiente"));
     } catch (err) {
@@ -97,15 +92,10 @@ export default function JefeView() {
   const handleAprobar = async (id: number) => {
     setEnviando(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`https://api-poseidon.onrender.com/api/solicitudes/${id}/evaluar`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ estado_nuevo: "Aprobado", observacion: null }),
-      });
+      const res = await apiFetch(`/api/solicitudes/${id}/evaluar`, {
+  method: "PUT",
+  body: JSON.stringify({ estado_nuevo: "Aprobado", observacion: null }),
+});
       if (res.status === 200) {
         setPendientes((prev) => prev.filter((s) => s.id_solicitud !== id));
         toast.success("Solicitud aprobada exitosamente.");
@@ -132,18 +122,10 @@ export default function JefeView() {
     if (!motivoRechazo.trim() || solicitudSeleccionada === null) return;
     setEnviando(true);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(
-        `https://api-poseidon.onrender.com/api/solicitudes/${solicitudSeleccionada}/evaluar`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ estado_nuevo: "Rechazado", observacion: motivoRechazo.trim() }),
-        }
-      );
+      const res = await apiFetch(`/api/solicitudes/${solicitudSeleccionada}/evaluar`, {
+  method: "PUT",
+  body: JSON.stringify({ estado_nuevo: "Rechazado", observacion: motivoRechazo.trim() }),
+});
       if (res.status === 200) {
         setPendientes((prev) => prev.filter((s) => s.id_solicitud !== solicitudSeleccionada));
         setRechazoDialog(false);
