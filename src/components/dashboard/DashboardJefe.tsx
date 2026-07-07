@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
+import { apiFetch } from "@/lib/apiClient"; 
 interface SolicitudAPI {
   id_solicitud:   number;
   dni:            string;
@@ -41,28 +41,22 @@ export default function DashboardJefe() {
   const [porPagina, setPorPagina]         = useState(10);
 
   useEffect(() => {
-    const fetchSolicitudes = async () => {
-      setCargandoLista(true);
-      setErrorLista(null);
-      try {
-        const token = localStorage.getItem("accessToken");
-        const res = await fetch("https://api-poseidon.onrender.com/api/solicitudes", {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-        if (!res.ok) throw new Error(`Error ${res.status}`);
-        const data: SolicitudAPI[] = await res.json();
-        setSolicitudes(data);
-      } catch (err) {
-        setErrorLista(err instanceof Error ? err.message : "Error inesperado.");
-      } finally {
-        setCargandoLista(false);
-      }
-    };
-    fetchSolicitudes();
-  }, []);
+  const fetchSolicitudes = async () => {
+    setCargandoLista(true);
+    setErrorLista(null);
+    try {
+      const res = await apiFetch("/api/solicitudes");
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data: SolicitudAPI[] = await res.json();
+      setSolicitudes(data);
+    } catch (err) {
+      setErrorLista(err instanceof Error ? err.message : "Error inesperado.");
+    } finally {
+      setCargandoLista(false);
+    }
+  };
+  fetchSolicitudes();
+}, []);
 
   const pendientes = solicitudes.filter((s) => s.estado === "Pendiente").length;
 
