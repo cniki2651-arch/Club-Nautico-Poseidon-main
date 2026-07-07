@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-
+import { apiFetch } from "@/lib/apiClient"; 
 function EstadoBadge({ estado }: { estado: string }) {
   switch (estado) {
     case "Aprobado":
@@ -56,17 +56,11 @@ export default function ZarpesPage() {
   const [paginaZarpes, setPaginaZarpes] = useState(1);
   const [porPaginaZarpes, setPorPaginaZarpes] = useState(10);
 
-  const getHeaders = () => {
-    const token = localStorage.getItem("accessToken");
-    return {
-      "Content-Type": "application/json",
-      "Authorization": token ? `Bearer ${token}` : "",
-    };
-  };
+  
 
   const fetchZarpes = async () => {
     try {
-      const res = await fetch("https://api-poseidon.onrender.com/api/zarpes", { headers: getHeaders() });
+      const res = await apiFetch("/api/zarpes");
       if (res.ok) {
         const data = await res.json();
         setZarpes(data);
@@ -78,12 +72,11 @@ export default function ZarpesPage() {
 
   const fetchData = async () => {
     try {
-      const headers = getHeaders();
       const [embsRes, tripRes, socRes] = await Promise.all([
-        fetch("https://api-poseidon.onrender.com/api/embarcaciones", { headers }),
-        fetch("https://api-poseidon.onrender.com/api/tripulantes", { headers }),
-        fetch("https://api-poseidon.onrender.com/api/socios", { headers })
-      ]);
+  apiFetch("/api/embarcaciones"),
+  apiFetch("/api/tripulantes"),
+  apiFetch("/api/socios")
+]);
 
       if (embsRes.ok) {
         const data = await embsRes.json();
@@ -118,13 +111,7 @@ export default function ZarpesPage() {
     const validarDeudaSocio = async () => {
       setValidandoSocio(true);
       try {
-        const token = localStorage.getItem("accessToken");
-        const res = await fetch(`https://api-poseidon.onrender.com/api/facturacion/deuda/${selectedSocio}`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
+        const res = await apiFetch(`/api/facturacion/deuda/${selectedSocio}`);
 
         if (res.ok) {
           const data = await res.json();
@@ -172,10 +159,9 @@ export default function ZarpesPage() {
 
   const aprobarZarpe = async (id: number | string) => {
     try {
-      const res = await fetch(`https://api-poseidon.onrender.com/api/zarpes/${id}/aprobar`, {
-        method: "PUT",
-        headers: getHeaders(),
-      });
+      const res = await apiFetch(`/api/zarpes/${id}/aprobar`, {
+  method: "PUT",
+});
       if (res.ok) {
         toast({ title: "Zarpe aprobado", description: "El estado ha sido actualizado correctamente." });
         fetchZarpes();
@@ -192,9 +178,7 @@ export default function ZarpesPage() {
   const handleImprimirZarpe = async (id: number | string) => {
     setLoadingPrint(id);
     try {
-      const res = await fetch(`https://api-poseidon.onrender.com/api/zarpes/${id}/documento`, {
-        headers: getHeaders(),
-      });
+     const res = await apiFetch(`/api/zarpes/${id}/documento`);
       if (res.ok) {
         const data = await res.json();
         setZarpeParaImprimir(data);
@@ -259,12 +243,10 @@ export default function ZarpesPage() {
         pasajeros
       };
 
-      const res = await fetch("https://api-poseidon.onrender.com/api/zarpes/crear", {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify(body)
-      });
-
+      const res = await apiFetch("/api/zarpes/crear", {
+  method: "POST",
+  body: JSON.stringify(body)
+});
       if (res.ok) {
         toast({ title: "Zarpe registrado", description: "El permiso de salida ha sido creado." });
         setOpen(false);
