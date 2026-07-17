@@ -172,9 +172,6 @@ export default function SecretariaView() {
     disponibilidadServicios[servicio]?.disponible !== false;
 
   //   PRECIOS DE SERVICIOS
-  // TODO(backend): no existe /api/consumos/precios ni ningún catálogo de precios
-  // por servicio en ms-facturacion -- ConsumoController solo hace CRUD de consumos
-  // ya creados con su monto explícito, no gestiona una tabla de precios.
   const fetchPreciosServicios = async () => {
     setCargandoPrecios(true);
     try {
@@ -192,8 +189,6 @@ export default function SecretariaView() {
   };
 
   // ── DISPONIBILIDAD DE SERVICIOS: cargar estado actual ────────────────────
-  // TODO(backend): no existe /api/consumos/disponibilidad -- no hay concepto de
-  // "servicio habilitado/deshabilitado" en ms-facturacion.
   const fetchDisponibilidadServicios = async () => {
     setCargandoDisponibilidad(true);
     try {
@@ -259,9 +254,6 @@ export default function SecretariaView() {
     setSocioEncontrado(null);
     setErrorBusquedaSocio(null);
     try {
-      // TODO(backend): SocioController solo tiene GET /api/socios/{id numérico},
-      // no una búsqueda por tipo_doc+numero. Esto rompe también el flujo de
-      // "Registrar Servicio" más abajo, que depende de este socio encontrado.
       const res = await apiFetch(`/api/socios/buscar?tipo_doc=${tipoDoc}&numero=${numero}`);
       const data = await res.json();
       if (!res.ok) {
@@ -277,8 +269,6 @@ export default function SecretariaView() {
   };
 
   // CONSULTA AL BACKEND: MÉTRICAS
-  // TODO(backend): no existe /api/dashboard/secretaria ni "solicitudes" en ningún
-  // microservicio -- ver TODO de fetchSolicitudes más abajo para más contexto.
   const fetchMetricas = async () => {
     try {
       const res = await apiFetch("/api/dashboard/secretaria");
@@ -293,10 +283,6 @@ export default function SecretariaView() {
   };
 
   //   LISTAR SOLICITUDES
-  // TODO(backend): el concepto de "solicitudes" (registro pendiente de aprobación
-  // por Jefatura) no existe en NINGÚN microservicio -- no hay tabla, controller ni
-  // ruta para esto. Es una funcionalidad de negocio que falta construir desde cero,
-  // no un problema de URL mal escrita.
   const fetchSolicitudes = async () => {
     setCargandoLista(true);
     setErrorLista(null);
@@ -412,26 +398,28 @@ export default function SecretariaView() {
       return;
     }
 
+    if (!socioEncontrado) {
+      alert("Busca y selecciona un socio válido antes de registrar el servicio.");
+      return;
+    }
+
     setGuardandoServicio(true);
     try {
       const descripcionFinal = esServicioInstructor
         ? `Instructor: ${nombreInstructor}${descripcionServicio ? " — " + descripcionServicio : ""}`
         : descripcionServicio || `Cargo por servicio de ${categoriaServicio}`;
 
-      // TODO(backend): la URL es correcta, pero ConsumoRequest.java espera
-      // { idSocio (numérico), servicio, monto, descripcion, estado } -- no
-      // { tipo_doc, dni_socio, fecha }. Como buscarSocioPorDocumento tampoco
-      // funciona (ver TODO arriba), este flujo completo depende de que el
-      // backend agregue una forma de resolver tipo_doc+dni -> idSocio.
+      // ConsumoRequest.java (ms-facturacion) espera camelCase, a diferencia de
+      // solicitudes/retiros que usan snake_case -- este endpoint ya existía
+      // antes de hoy y no se tocó, por eso el formato es distinto.
       const res = await apiFetch("/api/consumos", {
         method: "POST",
         body: JSON.stringify({
-          tipo_doc: tipoDocServicio,
-          dni_socio: dniSocioServicio,
+          idSocio: socioEncontrado.idSocio,
           servicio: categoriaServicio,
           monto: parseFloat(montoServicio),
           descripcion: descripcionFinal,
-          fecha: new Date().toISOString(),
+          estado: "PENDIENTE",
         }),
       });
 

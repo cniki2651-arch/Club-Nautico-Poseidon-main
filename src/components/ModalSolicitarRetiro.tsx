@@ -42,9 +42,6 @@ export default function ModalSolicitarRetiro({
     setLoading(true);
 
     try {
-      // TODO(backend): el concepto de "retiros" (retiro de embarcación/socio del
-      // club, pendiente de aprobación) no existe en ningún microservicio -- no hay
-      // tabla, controller ni ruta para esto. Funcionalidad nueva por construir.
       const res = await apiFetch("/api/retiros/solicitar", {
         method: "POST",
         body: JSON.stringify({

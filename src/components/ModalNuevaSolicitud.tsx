@@ -181,8 +181,6 @@ export default function ModalNuevaSolicitud({
     setErrorMsg(null);
 
     try {
-      // TODO(backend): "solicitudes" no existe en ningún microservicio -- ver
-      // nota detallada en SecretariaView.tsx (fetchSolicitudes).
       const res = await apiFetch("/api/solicitudes/crear", {
         method: "POST",
         body: JSON.stringify({
