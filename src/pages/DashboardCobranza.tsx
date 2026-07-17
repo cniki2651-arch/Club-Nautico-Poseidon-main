@@ -135,17 +135,28 @@ export default function DashboardCobranza() {
   const rangeStartPV = totalRecordsPV === 0 ? 0 : (pagePV - 1) * pageSizePV + 1;
   const rangeEndPV = Math.min(pagePV * pageSizePV, totalRecordsPV);
 
-  // TODO(backend): el equivalente real es GET /api/cobranza/pendientes
-  // (CobranzaController), pero devuelve CobranzaResponse[] (idFactura, idSocio,
-  // montoBase, interesesCalculados, totalAcumulado, diasMora...), no el shape
-  // FacturaPorVencer[] que espera esta página -- falta reconciliar los campos.
   const fetchPorVencer = async () => {
   setLoadingPV(true);
   setErrorPV(null);
   try {
-    const res = await apiFetch("/api/facturacion/por-vencer");
+    const res = await apiFetch("/api/cobranza/pendientes");
     if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar las facturas por vencer.`);
-      const data = await res.json();
+      const raw: { idFactura: number; idSocio: number; concepto: string; montoBase: number; totalAcumulado: number; fechaVencimiento: string; estadoPago: string }[] = await res.json();
+      const data: FacturaPorVencer[] = raw.map((r) => ({
+        id_factura: r.idFactura,
+        id_socio: r.idSocio,
+        concepto: r.concepto,
+        monto_base: r.montoBase,
+        monto_total: r.totalAcumulado,
+        fecha_emision: "",
+        fecha_vencimiento: r.fechaVencimiento,
+        estado_pago: r.estadoPago,
+        dni: "",
+        nombres: `Socio #${r.idSocio}`,
+        apellidos: "",
+        tipo_doc_siglas: "",
+        numero_cuota: null,
+      }));
       setPorVencerList(data);
       setPagePV(1);
     } catch (err) {
@@ -161,10 +172,6 @@ export default function DashboardCobranza() {
     if (!pFacturaIdPV) return;
     setPayingPV(true);
     try {
-      // Ruta real: PATCH /api/facturas/:id/pagar (el id va en el path, no en el body).
-      // TODO(backend): esta llamada devuelve la FacturaResponse actualizada, NO el
-      // desglose { total_pagado, monto_base, interes_sbs, dias_mora } que se usa
-      // más abajo para el toast -- ese cálculo no existe en la respuesta de "pagar".
       const res = await apiFetch(`/api/facturas/${pFacturaIdPV}/pagar`, {
   method: "PATCH",
 });
@@ -233,14 +240,26 @@ export default function DashboardCobranza() {
   setLoadingM(true);
   setErrorM(null);
   try {
-    // TODO(backend): el equivalente real es GET /api/cobranza/vencidas, que NO acepta
-    // un parámetro de tasa personalizada (?tasa_mensual=) -- el interés se calcula
-    // server-side con una tasa fija. También devuelve CobranzaResponse[], no
-    // FacturaMorosa[]. Se necesita decidir si la tasa configurable se agrega al backend.
     const targetRate = typeof rate === "string" ? rate : sbsRate;
-    const res = await apiFetch(`/api/facturacion/morosos?tasa_mensual=${targetRate}`);
+    const res = await apiFetch(`/api/cobranza/vencidas?tasa_mensual=${targetRate}`);
     if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar los socios morosos.`);
-      const data = await res.json();
+      const raw: { idFactura: number; idSocio: number; concepto: string; montoBase: number; interesesCalculados: number; totalAcumulado: number; diasMora: number; estadoPago: string }[] = await res.json();
+      const data: FacturaMorosa[] = raw.map((r) => ({
+        id_factura: r.idFactura,
+        id_socio: r.idSocio,
+        concepto: r.concepto,
+        monto_base: r.montoBase,
+        monto_total: r.totalAcumulado,
+        fecha_emision: "",
+        fecha_vencimiento: "",
+        estado_pago: r.estadoPago,
+        dni: "",
+        nombres: `Socio #${r.idSocio}`,
+        apellidos: "",
+        tipo_doc_siglas: "",
+        interes_sbs: r.interesesCalculados,
+        dias_mora: r.diasMora,
+      }));
       setMorososList(data);
       setPageM(1);
     } catch (err) {
@@ -256,8 +275,6 @@ export default function DashboardCobranza() {
     if (!pFacturaIdM) return;
     setPayingM(true);
     try {
-     // Mismo caso que arriba: ruta real PATCH /api/facturas/:id/pagar, id en el path,
-     // no acepta tasa_mensual, y no devuelve el desglose de interés (ver TODO arriba).
      const res = await apiFetch(`/api/facturas/${pFacturaIdM}/pagar`, {
   method: "PATCH",
 });
@@ -319,15 +336,27 @@ export default function DashboardCobranza() {
   const rangeStartPR = totalRecordsPR === 0 ? 0 : (pagePR - 1) * pageSizePR + 1;
   const rangeEndPR = Math.min(pagePR * pageSizePR, totalRecordsPR);
 
-  // TODO(backend): equivalente real es GET /api/cobranza/historial, devuelve
-  // CobranzaResponse[], no el shape que espera esta tabla -- reconciliar campos.
   const fetchPagosRealizados = async () => {
   setLoadingPR(true);
   setErrorPR(null);
   try {
-    const res = await apiFetch("/api/facturacion/pagados");
+    const res = await apiFetch("/api/cobranza/historial");
     if (!res.ok) throw new Error(`Error ${res.status}: no se pudo cargar el historial de pagos.`);
-      const data = await res.json();
+      const raw: { idFactura: number; idSocio: number; concepto: string; montoBase: number; totalAcumulado: number; fechaVencimiento: string }[] = await res.json();
+      const data: PagoRealizado[] = raw.map((r) => ({
+        id_factura: r.idFactura,
+        id_socio: r.idSocio,
+        concepto: r.concepto,
+        monto_base: r.montoBase,
+        monto_total: r.totalAcumulado,
+        fecha_emision: "",
+        fecha_vencimiento: r.fechaVencimiento,
+        fecha_pago: null,
+        dni: "",
+        nombres: `Socio #${r.idSocio}`,
+        apellidos: "",
+        tipo_doc_siglas: "",
+      }));
       setPagosRealizadosList(data);
       setPagePR(1);
     } catch (err) {

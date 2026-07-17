@@ -88,14 +88,11 @@ export default function DashboardFinanzas() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO(backend): no existe ningún endpoint de dashboard agregado en ms-facturacion.
-    // Habría que construirlo ahí (KPIs de facturación) o armarlo en el frontend
-    // combinando /api/facturas, /api/cobranza/pendientes y /api/cobranza/vencidas.
     const fetchDashboard = async () => {
   setCargando(true);
   setError(null);
   try {
-    const res = await apiFetch("/api/facturacion/dashboard");
+    const res = await apiFetch("/api/facturas/dashboard");
     if (!res.ok) throw new Error(`Error ${res.status} al cargar el dashboard.`);
     const json: DashboardData = await res.json();
     setData(json);

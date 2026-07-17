@@ -39,12 +39,9 @@ export default function DashboardNaviero() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-  // TODO(backend): no existe ningún endpoint de dashboard agregado para Náutica.
-  // Habría que construirlo, o armarlo en el frontend combinando
-  // /api/nautica/embarcaciones, /api/nautica/radas y /api/nautica/zarpes.
   const fetchDashboardData = async () => {
     try {
-      const response = await apiFetch("/api/dashboard/naviero");
+      const response = await apiFetch("/api/nautica/dashboard/naviero");
 
       if (!response.ok) {
         throw new Error("Error al obtener los datos del dashboard");
