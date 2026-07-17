@@ -69,6 +69,8 @@ export default function TablaRetirosPendientes() {
   const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<SolicitudRetiro | null>(null);
 
   // Cargar solicitudes de retiro pendientes desde el backend
+  // TODO(backend): "retiros" no existe en ningún microservicio -- ver nota
+  // detallada en ModalSolicitarRetiro.tsx.
   const fetchSolicitudes = async () => {
     setLoading(true);
     setError(null);
@@ -143,6 +145,7 @@ export default function TablaRetirosPendientes() {
 
     setProcesandoBaja(true);
     try {
+      // TODO(backend): mismo caso, "retiros" no existe en el backend.
       const res = await apiFetch("/api/retiros/aprobar", {
   method: "POST",
   body: JSON.stringify({

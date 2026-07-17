@@ -70,7 +70,9 @@ export default function JefeView() {
   const [porPaginaAprob, setPorPaginaAprob] = useState(10);
 
   // ── Fetch solicitudes pendientes ──────────────────────────────────────────
-  
+  // TODO(backend): todo este archivo depende de "solicitudes" (aprobar/rechazar),
+  // que no existe en ningún microservicio -- ver nota detallada en
+  // SecretariaView.tsx (fetchSolicitudes). Funcionalidad nueva por construir.
      const fetchPendientes = async () => {
   setCargandoLista(true);
   setErrorLista(null);
