@@ -49,7 +49,7 @@ export default function HistorialConsumosPage() {
   const fetchConsumos = async () => {
   setCargandoConsumos(true);
   try {
-    const res = await apiFetch("/api/facturacion/consumos");
+    const res = await apiFetch("/api/consumos");
     if (!res.ok) return;
     const data: SocioConsumosAPI[] = await res.json();
 
