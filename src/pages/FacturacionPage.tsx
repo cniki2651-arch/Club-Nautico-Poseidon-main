@@ -93,6 +93,10 @@ export default function FacturacionPage() {
   const [registrosPorPaginaCuentas, setRegistrosPorPaginaCuentas] = useState(10);
   const [paginaActualCuentas, setPaginaActualCuentas] = useState(1);
 
+  // TODO(backend): no existe ningún endpoint de "estado de cuenta agregado por socio"
+  // en ms-facturacion. FacturaController solo expone CRUD de facturas individuales
+  // (GET/POST /api/facturas). Habría que construir esta agregación en el backend,
+  // o armarla en el frontend a partir de GET /api/facturas + GET /api/socios.
   const fetchEstadosCuenta = async () => {
     setCargandoCuentas(true);
     setErrorCuentas(null);
@@ -140,6 +144,10 @@ export default function FacturacionPage() {
   const [errorConsumos, setErrorConsumos] = useState<string | null>(null);
   const [generandoFacturacion, setGenerandoFacturacion] = useState(false);
 
+  // TODO(backend): lo más cercano que existe es GET /api/consumos/sin-facturar
+  // (ConsumoController), pero devuelve una lista plana de consumos, no agrupada
+  // por socio como espera SocioConConsumos[] aquí. Se necesita decidir si esa
+  // agrupación se hace en el backend o se arma en el frontend a partir de esa ruta.
   const fetchConsumosPendientes = async () => {
     setCargandoConsumos(true);
     setErrorConsumos(null);
@@ -159,6 +167,9 @@ export default function FacturacionPage() {
   const [cargandoMorosos, setCargandoMorosos] = useState(true);
   const [errorMorosos, setErrorMorosos] = useState<string | null>(null);
 
+  // TODO(backend): lo más cercano es GET /api/cobranza/vencidas (CobranzaController),
+  // pero devuelve CobranzaResponse (idFactura, idSocio, montoBase, interesesCalculados,
+  // totalAcumulado, diasMora...), no el shape SocioMoroso[] que espera esta página.
   const fetchMorosos = async () => {
     setCargandoMorosos(true);
     setErrorMorosos(null);
@@ -193,6 +204,9 @@ export default function FacturacionPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
+  // TODO(backend): "fraccionar" no está implementado en ningún controller de
+  // ms-facturacion. El modelo Factura.java sí tiene campos idFacturaPadre/numeroCuota
+  // (o sea, se pensó para esto), pero nunca se construyó el endpoint que los use.
   async function handleFraccion(e: React.FormEvent) {
     e.preventDefault();
     if (!fSocio || !facturaSeleccionada) return;
@@ -224,6 +238,10 @@ export default function FacturacionPage() {
     }
   }
 
+  // TODO(backend): no existe un endpoint de generación masiva de facturas a partir
+  // de consumos pendientes. FacturaController solo tiene POST /api/facturas, que crea
+  // UNA factura con datos explícitos (idSocio, concepto, montoBase...) enviados en el
+  // body -- no una operación batch "facturar todos los consumos sin facturar".
   async function handleGenerarFacturacion() {
     setGenerandoFacturacion(true);
     try {
