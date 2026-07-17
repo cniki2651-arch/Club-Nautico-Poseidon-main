@@ -234,9 +234,6 @@ export default function UsuariosPage() {
   };
 
   // ── Eliminar usuario ──────────────────────────────────────────────────────
-  // TODO(backend): AdminController (auth-service) no tiene ningún endpoint DELETE
-  // para usuarios -- solo expone GET /api/admin/usuarios y PUT /api/admin/usuarios/{id}/rol.
-  // Esta acción va a fallar (404) hasta que se agregue esa ruta en el backend.
   const confirmarEliminar = async () => {
     if (!usuarioAEliminar) return;
 
@@ -244,7 +241,7 @@ export default function UsuariosPage() {
       const res = await apiFetch(`/api/admin/usuarios/${usuarioAEliminar.id_usuario}`, {
   method: "DELETE",
 });
-      if (res.status === 200) {
+      if (res.ok) {
         setUsuarios((prev) => prev.filter((u) => u.id_usuario !== usuarioAEliminar.id_usuario));
         setUsuarioAEliminar(null);
       } else {
@@ -272,10 +269,6 @@ export default function UsuariosPage() {
   };
 
   // ── Enviar edición ────────────────────────────────────────────────────────
-  // TODO(backend): AdminController solo permite cambiar el ROL (PUT /api/admin/usuarios/{id}/rol,
-  // body = el id de rol como string JSON crudo, ej. "4"). No existe forma de editar
-  // nombres/apellidos -- esos cambios se reflejan solo en la UI, no se guardan en el backend
-  // hasta que se agregue esa funcionalidad del lado del auth-service.
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!usuarioEnEdicion || !editForm.rol) { setErrorEdit("Selecciona un rol."); return; }
@@ -284,9 +277,13 @@ export default function UsuariosPage() {
     setErrorEdit(null);
 
     try {
-      const res = await apiFetch(`/api/admin/usuarios/${usuarioEnEdicion.id_usuario}/rol`, {
+      const res = await apiFetch(`/api/admin/usuarios/${usuarioEnEdicion.id_usuario}`, {
   method: "PUT",
-  body: JSON.stringify(String(rolIdMap[editForm.rol as Rol])),
+  body: JSON.stringify({
+    nombres: editForm.nombres,
+    apellidos: editForm.apellidos,
+    id_rol: Number(rolIdMap[editForm.rol as Rol]),
+  }),
 });
 
       const data = await res.json().catch(() => ({}));

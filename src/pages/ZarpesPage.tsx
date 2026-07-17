@@ -111,10 +111,7 @@ export default function ZarpesPage() {
     const validarDeudaSocio = async () => {
       setValidandoSocio(true);
       try {
-          // TODO: el backend no tiene un endpoint de deuda por socio (/api/facturacion/deuda/:id
-        // no existe en ningún gateway route). Se deja apuntando aquí a propósito porque el
-        // fallback local de abajo (estado === "Moroso") ya cubre el caso mientras no exista.
-        const res = await apiFetch(`/api/facturacion/deuda/${selectedSocio}`);
+        const res = await apiFetch(`/api/facturas/deuda/${selectedSocio}`);
 
         if (res.ok) {
           const data = await res.json();
